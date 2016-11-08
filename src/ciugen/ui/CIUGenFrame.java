@@ -46,7 +46,7 @@ import javax.swing.table.DefaultTableModel;
  */
 public class CIUGenFrame extends javax.swing.JFrame 
 {	
-	private static final String TITLE = "Unified Raw Data Extraction Tool - v3.6.3";
+	private static final String TITLE = "TWIMExtract v0.1";
 	
 	private static final long serialVersionUID = -1971838044338723234L;
 	private JFileChooser fc = null;
@@ -62,18 +62,11 @@ public class CIUGenFrame extends javax.swing.JFrame
 	
     //single instance of preferences
     private static Preferences preferences = Preferences.getInstance();
-
-    // Constants for computing lockmass correction, based on Glu-Fib 2+ reference (exact mass) used in Martin lab
-    private static final double LOCKMASS_REFERENCE = 785.8426;
-    private static final double[] LOCKMASS_RANGES = {50.0,2000.0,100000,0.0,200.0,200,1,200,200};
-    private static final double LOCKMASS_MIN_MZ = 750.0;
-    private static final double LOCKMASS_MAX_MZ = 825.0;
       
     // CheckBox booleans
     private boolean useTrapCV;
     private boolean useTransfCV;
     private boolean useConeCV;
-    private boolean useLockmass;
     private boolean useWavevel;
     private boolean useWaveht;
     
@@ -86,18 +79,18 @@ public class CIUGenFrame extends javax.swing.JFrame
     private ArrayList<String> rawPaths;
     
     // String locations for function strings from getAllFunctionInfo
-    private static final int TRAPCV_SPLITS = 4;
-    private static final int WH_SPLITS = 6;
-    private static final int WV_SPLITS = 7;
-    private static final int TRANSFCV_SPLITS = 5;
-    private static final int CONECV_SPLITS = 3;
-//    private static final int SELECTED_SPLITS  = 1;
+    private static final int TRAPCV_SPLITS = 3;
+    private static final int WH_SPLITS = 5;
+    private static final int WV_SPLITS = 6;
+    private static final int TRANSFCV_SPLITS = 4;
+    private static final int CONECV_SPLITS = 2;
+    private static final int SELECTED_SPLITS  = 1;
+    private static final int FN_SPLITS = 0;
     
     // String locations for table model (includes filename) - has to be in this order because that's the order it displays in the GUI
     private static final int FN_TABLE = 0;
     private static final int FILENAME_TABLE = 1;
     private static final int SELECT_TABLE = 2;
-    private static final int LOCKMASS_TABLE = 3;
     private static final int CONECV_TABLE = 4;
     private static final int TRAPCV_TABLE = 5;
     private static final int TRANSFCV_TABLE = 6;
@@ -273,7 +266,6 @@ public class CIUGenFrame extends javax.swing.JFrame
     	conecvCheckBox = new javax.swing.JCheckBox();
     	whCheckBox = new javax.swing.JCheckBox();
     	wvCheckBox = new javax.swing.JCheckBox();
-    	lockmassCheckBox = new javax.swing.JCheckBox();
     	
     	checkBoxPanel = new javax.swing.JPanel();
     	setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
@@ -305,7 +297,7 @@ public class CIUGenFrame extends javax.swing.JFrame
 //    					"Func", "Filename", "Raw MS1" , "Lock Mass", "rawPath"
 //    			}
     			new String [] {
-    					"Func", "Name", "Raw MS1" , "Lock Mass", "cone(V)", "trap(V)","transfer(V)", "WH(V)", "WV(m/s)"
+    					"Func", "Name", "Raw MS1" , "cone(V)", "trap(V)","transfer(V)", "WH(V)", "WV(m/s)"
     			}
     			) {
     		/**
@@ -314,11 +306,11 @@ public class CIUGenFrame extends javax.swing.JFrame
     		private static final long serialVersionUID = -9142278489188055889L;
     		Class[] types = new Class [] {
 //    				java.lang.Integer.class, java.lang.String.class, java.lang.Boolean.class, java.lang.Boolean.class, java.lang.String.class
-    				java.lang.Integer.class, java.lang.String.class, java.lang.Boolean.class, java.lang.Boolean.class, java.lang.Double.class,java.lang.Double.class,java.lang.Double.class,java.lang.Double.class,java.lang.Double.class
+    				java.lang.Integer.class, java.lang.String.class, java.lang.Boolean.class, java.lang.Double.class,java.lang.Double.class,java.lang.Double.class,java.lang.Double.class,java.lang.Double.class
     		};
     		boolean[] canEdit = new boolean [] {
 //    				false, false, true, true, false
-    				false, false, true, true, false,false,false,false,false
+    				false, false, true, false,false,false,false,false
 
     		};
 
@@ -500,9 +492,6 @@ public class CIUGenFrame extends javax.swing.JFrame
     			} else if (source == wvCheckBox){
     				if (selected){ useWavevel = true; }
     				else { useWavevel = false;}
-    			} else if (source == lockmassCheckBox){
-    				if (selected){ useLockmass = true; }
-    				else { useLockmass = false;}
     			} 
     		}
     	};
@@ -528,17 +517,12 @@ public class CIUGenFrame extends javax.swing.JFrame
     	wvCheckBox.setText("Wave Vel");
     	wvCheckBox.setSelected(false);
     	wvCheckBox.setToolTipText("If selected, IMS wave velocity information will be stored in the header of the final output csv");
-    	
-    	lockmassCheckBox.setText("Use Lockmass Fn 3");
-    	lockmassCheckBox.setSelected(false);
-    	lockmassCheckBox.setToolTipText("If selected, function 3 MS data will be searched for lockmass and used to correct raw data in function 1.");
-    
+  
     	trapcvCheckBox.addItemListener(checkListener);
     	transfcvCheckBox.addItemListener(checkListener);
     	conecvCheckBox.addItemListener(checkListener);
     	whCheckBox.addItemListener(checkListener);
     	wvCheckBox.addItemListener(checkListener);
-    	lockmassCheckBox.addItemListener(checkListener);
     	
     	// Also add  check buttons to panel for addition to JPanel 3
     	checkBoxPanel.add(trapcvCheckBox);
@@ -546,7 +530,6 @@ public class CIUGenFrame extends javax.swing.JFrame
     	checkBoxPanel.add(conecvCheckBox);
     	checkBoxPanel.add(whCheckBox);
     	checkBoxPanel.add(wvCheckBox);
-    	checkBoxPanel.add(lockmassCheckBox);
     }
        
     /**
@@ -609,7 +592,7 @@ public class CIUGenFrame extends javax.swing.JFrame
 	
 					// Add all information to the table model
 					//                     tblModel.addRow(new Object[]{Integer.parseInt(splits[0]), filename, Boolean.parseBoolean(splits[1]), Boolean.parseBoolean(splits[2]),rawPath});
-					tblModel.addRow(new Object[]{Integer.parseInt(splits[0]), filename, Boolean.parseBoolean(splits[1]), Boolean.parseBoolean(splits[2]),Double.parseDouble(splits[CONECV_SPLITS]),Double.parseDouble(splits[TRAPCV_SPLITS]),Double.parseDouble(splits[TRANSFCV_SPLITS]),Double.parseDouble(splits[WH_SPLITS]),Double.parseDouble(splits[WV_SPLITS])});
+					tblModel.addRow(new Object[]{Integer.parseInt(splits[FN_SPLITS]), filename, Boolean.parseBoolean(splits[SELECTED_SPLITS]),Double.parseDouble(splits[CONECV_SPLITS]),Double.parseDouble(splits[TRAPCV_SPLITS]),Double.parseDouble(splits[TRANSFCV_SPLITS]),Double.parseDouble(splits[WH_SPLITS]),Double.parseDouble(splits[WV_SPLITS])});
 	
 				}
 				functionsTable.revalidate();
@@ -766,48 +749,6 @@ public class CIUGenFrame extends javax.swing.JFrame
 	    runExtractHelper(rangeFiles);
 	}
 
-	/**
-	 * Helper method to get correction factor for lockmass data
-	 * @param rawFilesWithLockmass
-	 * @param lockmassflag
-	 * @param dataVector
-	 * @param sampleRawDataPath
-	 * @param imextractRunner
-	 * @return
-	 */
-	private double getCorrectionFactor(ArrayList<String> rawFilesWithLockmass, boolean lockmassflag, Vector<?> dataVector, String sampleRawDataPath, IMExtractRunner imextractRunner){
-		double correctionFactor = 0;
-		double lockmassMZ = 0;
-		for (int i=0; i<dataVector.size(); i++){
-
-			Vector<?> row = (Vector<?>)dataVector.get(i);
-			int function = (int)row.get(FN_TABLE);  
-			//        					boolean selected = (boolean)row.get(SELECT_TABLE);
-			boolean lockmass = (boolean) row.get(LOCKMASS_TABLE);
-			String rawName = (String)row.get(FILENAME_TABLE);
-			String rawDataPath = rawPaths.get(i);
-
-			if (rawDataPath.equals(sampleRawDataPath)){
-				if (lockmass){
-					// Only compute lockmass if we haven't already for this sample
-					if (!rawFilesWithLockmass.contains(rawDataPath)){
-						System.out.println("\n" + "Getting lockmass correction for sample "  + rawName);
-						lockmassMZ = imextractRunner.extractSpectrumForLockmass(rawDataPath, function, LOCKMASS_RANGES, LOCKMASS_MIN_MZ, LOCKMASS_MAX_MZ);								
-
-						// Update flags so we don't compute this lockmass again
-						lockmassflag = true;
-						rawFilesWithLockmass.add(rawDataPath);
-
-						// Compute correction factor
-						//    									correctionFactor = 0;
-						correctionFactor = LOCKMASS_REFERENCE - lockmassMZ;
-						System.out.println("Correction Factor (Da) = " + correctionFactor + "\n" + "**************"); 		    			
-					}
-				}
-			}			
-		}
-		return correctionFactor;
-	}
 	
 	/**
 	 * Method that actually runs the code for extracting DT files. Allows multiple ways to get the range files
@@ -817,51 +758,18 @@ public class CIUGenFrame extends javax.swing.JFrame
 	private void runExtractHelper(File[] rangeORruleFiles){
 		rawDataTextField.setText("...Analyzing Data (may take a minute)...");
 		System.out.println("Analyzing data (may take some time)");
-		// Determine lockmass or not based on user's input
-		if (useLockmass){
-			// *************** LOCKMASS SECTION - RANGE FILES LOOPED FIRST FOR SINGLE LOCKMASS CALC ***************
-			//iterator for the range file number
-			String csvOutName = "";
-
-			// Object to hold all info for the data vector
-			ArrayList<DataVectorInfoObject> allFunctions = new ArrayList<DataVectorInfoObject>();
-			DefaultTableModel funcsModel = (DefaultTableModel)functionsTable.getModel();
-			Vector<?> dataVector = funcsModel.getDataVector();
-			IMExtractRunner imextractRunner = IMExtractRunner.getInstance();   			
-
-			// Loop through RAW DATA, not range files first so that we can compute lockmass correction only once
-			// Iterate through the samples, computing lockmass and then analyzing data using the calculated correction factor
-			ArrayList<String> rawFilesWithLockmass = new ArrayList<String>();
-			for (String sampleRawDataPath : rawPaths){
-				// Get the lockmass function row in the table
-				boolean lockmassflag = false;
-				double correctionFactor = getCorrectionFactor(rawFilesWithLockmass, lockmassflag, dataVector, sampleRawDataPath, imextractRunner);
-
-				// Loop through the range files
-				for (File rangeFile : rangeORruleFiles){		
-					lockmassDTLoopHelper(rangeFile, dataVector, correctionFactor, allFunctions, lockmassflag, sampleRawDataPath);
-				}	
-			}	
-
-			// UPDATED - Once all function info has been gathered, send it to IMExtract
-			// DOES NOT HANDLE RULE FILES FOR NOW
-			imextractRunner.extractMobiligramOneFile(allFunctions,csvOutName, false, null);
-			System.out.println("Done!");
-			rawDataTextField.setText("Done!");
-
-			// END: ************** LOCKMASS LOOP (ALTERNATE ORDER) ***************
-		} else {
-			// No lockmass check, so extract data and whatever information desired by the user
-			rawDataTextField.setText("...Analyzing Data (may take a minute)...");
-			int counter = 1;
-			for (File rangeFile : rangeORruleFiles){
-				DTLoopHelper(rangeFile, rangeORruleFiles.length);
-				System.out.println("\n" + "Completed Range File " + counter + " of " + rangeORruleFiles.length + "\n");
-				counter++;
-			}
-			System.out.println("Done!");
-			rawDataTextField.setText("Done!");
-		}	
+	
+		// No lockmass check, so extract data and whatever information desired by the user
+		rawDataTextField.setText("...Analyzing Data (may take a minute)...");
+		int counter = 1;
+		for (File rangeFile : rangeORruleFiles){
+			DTLoopHelper(rangeFile, rangeORruleFiles.length);
+			System.out.println("\n" + "Completed Range File " + counter + " of " + rangeORruleFiles.length + "\n");
+			counter++;
+		}
+		System.out.println("Done!");
+		rawDataTextField.setText("Done!");
+	
 		//One last thing - clean all the temp files out of the root folder
 		cleanRoot();
 	}
@@ -910,12 +818,6 @@ public class CIUGenFrame extends javax.swing.JFrame
 			Vector<?> row = (Vector<?>)dataVector.get(i);
 			int function = (int)row.get(FN_TABLE);  
 			boolean selected = (boolean)row.get(SELECT_TABLE);
-			boolean lockmass = (boolean) row.get(LOCKMASS_TABLE);
-			// Catch lockmass when not in lockmass mode:
-			if (lockmass){
-				System.out.println("not in lockmass mode! Select the lockmass fn 3 check box before using this table option");
-				break;
-			}
 			rawName = (String)row.get(FILENAME_TABLE);
 			String rawDataPath = rawPaths.get(i);
 			File rawFile = new File(rawDataPath);
@@ -924,7 +826,7 @@ public class CIUGenFrame extends javax.swing.JFrame
 			double transfcv = (double) row.get(TRANSFCV_TABLE);
 			double wv = (double) row.get(WV_TABLE);
 			double wh = (double) row.get(WH_TABLE);
-			boolean[] infoTypes = {useConeCV,useTrapCV,useTransfCV,useWavevel,useWaveht,useLockmass};
+			boolean[] infoTypes = {useConeCV,useTrapCV,useTransfCV,useWavevel,useWaveht};
 
 			if (ruleMode){
 				// Call IMExtractRunner to generate a ranges.txt file in the root directory with the full ranges
@@ -951,7 +853,7 @@ public class CIUGenFrame extends javax.swing.JFrame
 			
 			// UPDATED - Create the data vector object to hold this info
 			if (selected){
-				DataVectorInfoObject functionInfo = new DataVectorInfoObject(rawDataPath, rawName,function,selected,lockmass,conecv,trapcv,transfcv,wh,wv,rangesArr,rangeFileName,infoTypes);
+				DataVectorInfoObject functionInfo = new DataVectorInfoObject(rawDataPath, rawName,function,selected,conecv,trapcv,transfcv,wh,wv,rangesArr,rangeFileName,infoTypes);
 				allFunctions.add(functionInfo);
 			}
 		}
@@ -966,83 +868,6 @@ public class CIUGenFrame extends javax.swing.JFrame
 		// UPDATED - Once all function info has been gathered, send it to IMExtract
 		imextractRunner.extractMobiligramOneFile(allFunctions,csvOutName, ruleMode, ruleFile);
 
-	}
-	
-	
-	/**
-	 * Helper method - runs inner loop (range files) for lockmass method. DOES NOT HANDLE RULE FILES 
-	 * AT THIS TIME.
-	 * @param rangeFile
-	 * @param dataVector
-	 * @param correctionFactor
-	 * @param allFunctions
-	 * @param lockmassflag
-	 * @param sampleRawDataPath
-	 */
-	private void lockmassDTLoopHelper(File rangeFile, Vector<?> dataVector, double correctionFactor, 
-			ArrayList<DataVectorInfoObject> allFunctions, boolean lockmassflag, String sampleRawDataPath){
-		
-		String rangePath = "";
-		try {
-			rangePath = rangeFile.getCanonicalPath();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		String rangeFileName = rangeFile.getName();
-	
-		//Now get the ranges from each range file
-		double[] rangesArr = IMExtractRunner.readDataRanges(rangePath);
-		//    					System.out.println("\n" + "Original Ranges from Range File '" + rangeFileName + "' are:");
-		//    					IMExtractRunner.PrintRanges(rangesArr);
-	
-		// Once lockmass is computed, correct each range file for it and analyze data
-		// Now apply the correction factor to all the range files before extracting the data
-		rangesArr = IMExtractRunner.editDataRanges(rangePath, correctionFactor);
-		//    					System.out.println("Corrected Masses from Range File '" + rangeFileName + "' are:");
-		//    					IMExtractRunner.PrintMassRanges(rangesArr);
-	
-	
-		// Once lockmass is computed and corrected for, analyze data
-		for (int i=0; i<dataVector.size(); i++){
-			Vector<?> row = (Vector<?>)dataVector.get(i);
-			int function = (int)row.get(FN_TABLE);  
-			boolean selected = (boolean)row.get(SELECT_TABLE);
-			boolean lockmass = (boolean) row.get(LOCKMASS_TABLE);
-			String rawName = (String)row.get(FILENAME_TABLE);
-			String rawDataPath = rawPaths.get(i);
-			double conecv = (double) row.get(CONECV_TABLE);
-			double trapcv = (double)row.get(TRAPCV_TABLE);
-			double transfcv = (double) row.get(TRANSFCV_TABLE);
-			double wv = (double) row.get(WV_TABLE);
-			double wh = (double) row.get(WH_TABLE);
-			boolean[] infoTypes = {useConeCV,useTrapCV,useTransfCV,useWavevel,useWaveht,useLockmass};
-	
-			// Only analyze data if we've already computed the lockmass
-			if (lockmassflag){
-				if (rawDataPath.equals(sampleRawDataPath)){
-					// New Version - saves to default output directory
-					String trimmedName = rawName;
-					try{
-						trimmedName = rawName.substring(0,rawName.lastIndexOf("_"));
-					} catch(Exception ex){
-						// Leave the raw name alone
-					}
-					File outputDir = new File(outputDirectory + File.separator + trimmedName);
-					if (!outputDir.exists()){
-						outputDir.mkdirs();
-					}
-					// CSV name does NOT include range file name for lockmass, since the range files are all inside
-					String csvOutName = outputDir + File.separator + rawName + "_raw.csv";						
-	
-					if( selected )
-					{
-						// UPDATED - Create the data vector object to hold this info (might need to check selected)
-						DataVectorInfoObject functionInfo = new DataVectorInfoObject(rawDataPath, rawName,function,selected,lockmass,conecv,trapcv,transfcv,wh,wv,rangesArr,rangeFileName,infoTypes);
-						allFunctions.add(functionInfo);
-					}
-				}
-			}
-		}
 	}
 
 	/**
@@ -1073,37 +898,7 @@ public class CIUGenFrame extends javax.swing.JFrame
 		cleanRoot();
 	}
 	
-//	private void runSpectrumExtractHelper(File[] rangeFiles, File[] ruleFiles){
-//		// No lockmass check, so extract data and whatever information desired by the user
-//		rawDataTextField.setText("...Analyzing Data (may take a minute)...");
-//		//iterator for the range file number
-//		int rangeFileNumber = 1;
-//
-//		String charge = "";
-//		try{
-//			// Get the charge state of the last range file (highest oligo should be the intact complex)
-//			String[] rangesplits = rangeFiles[rangeFiles.length - 1].getName().split("_");
-//			charge = rangesplits[1];
-//		} catch (Exception ex) {
-//			charge = "";
-//		}
-//
-//		//get path strings for each file
-//		for (File rangeFile : rangeFiles){
-//			// Do each rule file on each range file
-//			for (File ruleFile : ruleFiles){
-//				runSpectrumLoopHelper(rangeFile, charge, ruleFile);	
-//			}
-//			System.out.println("\n" + "Completed Range File " + rangeFileNumber + " of " + rangeFiles.length + "\n");
-//			rangeFileNumber++;
-//		}
-//
-//		System.out.println("Done!");
-//		rawDataTextField.setText("Done!");
-//
-//		//One last thing - clean all the temp files out of the root folder
-//		cleanRoot();
-//	}
+
 	/**
 	 * Helper method for runSpectrumExtractHelper - runs the inner loop where extraction happens. 
 	 * Allows for both rule file and non-rule file extractions
@@ -1146,12 +941,6 @@ public class CIUGenFrame extends javax.swing.JFrame
 			Vector<?> row = (Vector<?>)dataVector.get(i);
 			int function = (int)row.get(FN_TABLE);  
 			boolean selected = (boolean)row.get(SELECT_TABLE);
-			boolean lockmass = (boolean) row.get(LOCKMASS_TABLE);
-			// Catch lockmass when not in lockmass mode:
-			if (lockmass){
-				System.out.println("not in lockmass mode! Select the lockmass fn 3 check box before using this table option");
-				break;
-			}
 			String rawName = (String)row.get(FILENAME_TABLE);
 			String rawDataPath = rawPaths.get(i);
 			File rawFile = new File(rawDataPath);
@@ -1162,13 +951,7 @@ public class CIUGenFrame extends javax.swing.JFrame
 				String rangeLocation = preferences.getROOT_PATH() + File.separator + "ranges.txt";
 				rangesArr = IMExtractRunner.readDataRanges(rangeLocation);
 			}
-			//					double conecv = (double) row.get(CONECV_TABLE);
-			//					double trapcv = (double)row.get(TRAPCV_TABLE);
-			//					double transfcv = (double) row.get(TRANSFCV_TABLE);
-			//					double wv = (double) row.get(WV_TABLE);
-			//					double wh = (double) row.get(WH_TABLE);
-			//					boolean[] infoTypes = {useConeCV,useTrapCV,useTransfCV,useWavevel,useWaveht,useLockmass};
-
+			
 			// Use the intact complex rangefile's charge state as the folder name, not the raw data's in case of mistakes
 			String trimmedName;
 			try {
@@ -1183,11 +966,7 @@ public class CIUGenFrame extends javax.swing.JFrame
 				outputDir.mkdirs();
 			}
 			csvOutName = outputDir + File.separator + rangeFileName + "_#" + rawName + "_msraw.csv";						
-			// For now, will output single spectrum files, but could use this code to combine them
-			//					if (selected){
-			//						DataVectorInfoObject functionInfo = new DataVectorInfoObject(rawDataPath, rawName,function,selected,lockmass,conecv,trapcv,transfcv,wh,wv,rangesArr,rangeFileName,infoTypes);
-			//						allFunctions.add(functionInfo);
-			//					}
+
 			if (selected){
 				imextractRunner.extractSpectrum(rawDataPath, function, csvOutName, rangesArr, rangeFileName, rangeFile);
 			}
@@ -1298,7 +1077,7 @@ public class CIUGenFrame extends javax.swing.JFrame
                     	splits = line.split("\\t");
                     	if (reachedFunctions){
                     		// This is not the first function, so write out the previous function info and start fresh
-                    		String function = numFunctions + ",true" + ",false" + "," + coneCV + "," + trapCV + "," + transfCV + "," + wh + "," + wv; 
+                    		String function = numFunctions + ",true" + "," + coneCV + "," + trapCV + "," + transfCV + "," + wh + "," + wv; 
                         	functions.add(function);
                         	numFunctions++;
                     	} else {
@@ -1340,7 +1119,7 @@ public class CIUGenFrame extends javax.swing.JFrame
                 } // End - read fn info loop G2 (reached the end of the file)
                 
                 // Output the final function information to a function
-        		String function = numFunctions + ",true" + ",false" + "," + coneCV + "," + trapCV + "," + transfCV + "," + wh + "," + wv; 
+        		String function = numFunctions + ",true" + "," + coneCV + "," + trapCV + "," + transfCV + "," + wh + "," + wv; 
             	functions.add(function);
             	            	
             } else if (instrumentType == 0) {
@@ -1378,7 +1157,7 @@ public class CIUGenFrame extends javax.swing.JFrame
             			splits = line.split("\\t");
             			if (reachedFunctions){
             				// This is not the first function, so write out the previous function info and start fresh
-            				String function = numFunctions + ",true" + ",false" + "," + coneCV + "," + trapCV + "," + transfCV + "," + wh + "," + wv; 
+            				String function = numFunctions + ",true" + "," + coneCV + "," + trapCV + "," + transfCV + "," + wh + "," + wv; 
             				functions.add(function);
             				numFunctions++;
             			} else {
@@ -1418,7 +1197,7 @@ public class CIUGenFrame extends javax.swing.JFrame
             	} // End - read fn info loop G1 (reached the end of the file)
 
             	// Output the final function information to a function
-            	String function = numFunctions + ",true" + ",false" + "," + coneCV + "," + trapCV + "," + transfCV + "," + wh + "," + wv; 
+            	String function = numFunctions + ",true" + "," + coneCV + "," + trapCV + "," + transfCV + "," + wh + "," + wv; 
             	functions.add(function);	
 
             } else {
@@ -1505,7 +1284,6 @@ public class CIUGenFrame extends javax.swing.JFrame
     private javax.swing.JCheckBox conecvCheckBox;
     private javax.swing.JCheckBox whCheckBox;
     private javax.swing.JCheckBox wvCheckBox;
-    private javax.swing.JCheckBox lockmassCheckBox;
     private javax.swing.JPanel checkBoxPanel;
     // End of variables declaration//GEN-END:variables
    

@@ -10,7 +10,6 @@ public class DataVectorInfoObject {
 	private String rawDataPath;
 	private int function;
 	private boolean selected;
-	private boolean lockmass;
 	
 	private double coneCV;
 	private double trapCV;
@@ -28,7 +27,7 @@ public class DataVectorInfoObject {
 	//(rawDataPath, rawName,function,selected,lockmass,conecv,trapcv,transfcv,wh,wv,rangesArr,rangeFileName
 	
 	public DataVectorInfoObject(String myRawDataPath, String myRawName, int myFunction, boolean mySelected,
-			boolean myLockmass, double myConeCV, double myTrapCV, double myTransfCV, double myWH, double myWV,
+			double myConeCV, double myTrapCV, double myTransfCV, double myWH, double myWV,
 			double[] myRangesArr, String myRangeFileName, boolean[] myInfoTypes){
 		
 		this.setRawDataPath(myRawDataPath);
@@ -36,7 +35,6 @@ public class DataVectorInfoObject {
 		this.setFunction(myFunction);
 		this.setSelected(mySelected);
 		
-		this.setLockmass(myLockmass);
 		this.setConeCV(myConeCV);
 		this.setCollisionEnergy(myTrapCV);
 		this.setTransfCV(myTransfCV);
@@ -142,14 +140,6 @@ public class DataVectorInfoObject {
 
 	public void setRawDataName(String rawDataName) {
 		this.rawDataName = rawDataName;
-	}
-
-	public boolean isLockmass() {
-		return lockmass;
-	}
-
-	public void setLockmass(boolean lockmass) {
-		this.lockmass = lockmass;
 	}
 
 	public double getConeCV() {
