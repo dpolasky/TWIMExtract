@@ -36,6 +36,8 @@ import javax.swing.JTextField;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
 
+import java.util.logging.*;
+
 /**
  * General tool for extracting 1 dimensional DT and MZ datasets from Waters .raw files using specified
  * ranges or selection rules. Includes basic user interface (this class) and wrapper to handle running 
@@ -72,11 +74,12 @@ public class CIUGenFrame extends javax.swing.JFrame
     private boolean useWavevel;
     private boolean useWaveht;
     
-    // Stores user's desired behavior
+    // Mode settings
     private boolean printRanges = false;
-//    private boolean spectrumMode = false;
     private boolean ruleMode = false;
-    
+    private int chosen_extraction_mode;
+    private boolean combine_outputs;
+
     // global file information
     private ArrayList<String> rawPaths;
     
@@ -89,15 +92,21 @@ public class CIUGenFrame extends javax.swing.JFrame
     private static final int SELECTED_SPLITS  = 1;
     private static final int FN_SPLITS = 0;
     
+//    // Mode identifier constants
+//    private static final int DT_MODE = 0;
+//    private static final int MZ_MODE = 1;
+//    private static final int RT_MODE = 2;
+//    private static final int DTMZ_MODE = 3;
+    
     // String locations for table model (includes filename) - has to be in this order because that's the order it displays in the GUI
     private static final int FN_TABLE = 0;
     private static final int FILENAME_TABLE = 1;
     private static final int SELECT_TABLE = 2;
-    private static final int CONECV_TABLE = 4;
-    private static final int TRAPCV_TABLE = 5;
-    private static final int TRANSFCV_TABLE = 6;
-    private static final int WH_TABLE = 7;
-    private static final int WV_TABLE = 8;
+    private static final int CONECV_TABLE = 3;
+    private static final int TRAPCV_TABLE = 4;
+    private static final int TRANSFCV_TABLE = 5;
+    private static final int WH_TABLE = 6;
+    private static final int WV_TABLE = 7;
     
     // Menu components
 	private JMenuBar menuBar;
@@ -118,6 +127,7 @@ public class CIUGenFrame extends javax.swing.JFrame
 	private JMenuItem printRangeOptionItem;
 	private JMenuItem toggleRulesItem;
 	private MenuActions menuActionListener = new MenuActions();
+	private runButtonActions runButtonActionListener = new runButtonActions();
 	
     /**
      * Creates new form CIUGenFrame GUI
@@ -256,12 +266,27 @@ public class CIUGenFrame extends javax.swing.JFrame
 				
 			} else if (e.getSource() == aboutItem){
 				// Open the 'about' information tab with version, author, etc. Arbitrarily using JPanel1 as the parent component.
-				JOptionPane.showMessageDialog(jPanel1, "By Dan Polasky");
+				JOptionPane.showMessageDialog(jPanel1_top, "By Dan Polasky");
 			}
 		}
     	
     }
-    /**
+    public class runButtonActions implements ActionListener {
+		
+		public void actionPerformed(ActionEvent e) {
+			if (e.getSource() == runButton_DT) {
+				runExtractorButton(e, IMExtractRunner.DT_MODE);
+			} else if (e.getSource() == runButton_MZ){
+				runExtractorButton(e, IMExtractRunner.MZ_MODE);
+			} else if (e.getSource() == runButton_RT){
+				runExtractorButton(e, IMExtractRunner.RT_MODE);
+			} else if (e.getSource() == runButton_DTMZ){
+				runExtractorButton(e, IMExtractRunner.DTMZ_MODE);
+			}
+		}
+		
+	}
+	/**
      * Initialize primary GUI components
      */    
     // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
@@ -271,7 +296,9 @@ public class CIUGenFrame extends javax.swing.JFrame
     	this.setJMenuBar(menuBar);
     	
     	// Initialize other GUI components
-    	jPanel1 = new javax.swing.JPanel();
+    	topPanel = new javax.swing.JPanel();
+    	jPanel1_top = new javax.swing.JPanel();
+    	jPanel1_bottom = new javax.swing.JPanel();
     	jLabel1 = new javax.swing.JLabel();
     	statusTextBar = new javax.swing.JTextField("Press the Browse button to select raw files");
     	statusTextBar.setHorizontalAlignment(JTextField.CENTER);
@@ -280,10 +307,13 @@ public class CIUGenFrame extends javax.swing.JFrame
     	jScrollPane2 = new javax.swing.JScrollPane();
     	functionsTable = new javax.swing.JTable();
     	jPanel3 = new javax.swing.JPanel();
+    	runPanel = new javax.swing.JPanel();
     	jLabel2 = new javax.swing.JLabel();
     	tabbedPane = new javax.swing.JTabbedPane();
-    	multiRangeRunButton = new javax.swing.JButton(); 
-    	spectrumButton = new javax.swing.JButton();
+    	runButton_DT = new javax.swing.JButton(); 
+    	runButton_MZ = new javax.swing.JButton();
+    	runButton_RT = new javax.swing.JButton();
+    	runButton_DTMZ = new javax.swing.JButton();
     	
     	trapcvCheckBox = new javax.swing.JCheckBox();
     	transfcvCheckBox = new javax.swing.JCheckBox();
@@ -296,12 +326,13 @@ public class CIUGenFrame extends javax.swing.JFrame
     	setTitle(TITLE);
 
     	// jPanel 1:
-    	jPanel1.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 10, 10, 10));
-    	jPanel1.setLayout(new javax.swing.BoxLayout(jPanel1, javax.swing.BoxLayout.LINE_AXIS));
+    	topPanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(2, 2, 2, 2));
+//    	topPanel.setLayout(new javax.swing.BoxLayout(jPanel1_top, javax.swing.BoxLayout.LINE_AXIS));
+    	topPanel.setLayout(new java.awt.BorderLayout());
 
     	jLabel1.setText("Status:");
-    	jPanel1.add(jLabel1);
-    	jPanel1.add(statusTextBar);
+    	jPanel1_top.add(jLabel1);
+    	jPanel1_top.add(statusTextBar);
 
     	browseDataButton.setText("Browse Data");
     	browseDataButton.addActionListener(new java.awt.event.ActionListener() {
@@ -310,8 +341,21 @@ public class CIUGenFrame extends javax.swing.JFrame
     		}
     	});
     	browseDataButton.setToolTipText("Opens a file chooser to select the raw data files from which to extract. Selected files will be displayed in the table below");
-    	jPanel1.add(browseDataButton);
-    	getContentPane().add(jPanel1, java.awt.BorderLayout.NORTH);
+    	jPanel1_top.add(browseDataButton);
+    	
+    	ruleModeLabel = new javax.swing.JLabel("Range/Rule Mode:");
+    	ruleModeTextField = new javax.swing.JTextField("Range Mode");
+    	combineModeLabel = new javax.swing.JLabel("Combine Outputs?");
+    	combineModeTextField = new javax.swing.JTextField("Yes");
+    	
+    	jPanel1_bottom.add(ruleModeLabel);
+    	jPanel1_bottom.add(ruleModeTextField);
+    	jPanel1_bottom.add(combineModeLabel);
+    	jPanel1_bottom.add(combineModeTextField);
+    	
+    	topPanel.add(jPanel1_top, java.awt.BorderLayout.NORTH);
+    	topPanel.add(jPanel1_bottom, java.awt.BorderLayout.SOUTH);
+    	getContentPane().add(topPanel, java.awt.BorderLayout.NORTH);
 
     	// jPanel 2:
     	jPanel2.setLayout(new java.awt.BorderLayout(10, 10));
@@ -319,7 +363,7 @@ public class CIUGenFrame extends javax.swing.JFrame
     	functionsTable.setModel(new javax.swing.table.DefaultTableModel(
     			new Object [][] {},
     			new String [] {
-    					"Func", "Name", "Raw MS1" , "cone(V)", "trap(V)","transfer(V)", "WH(V)", "WV(m/s)"
+    					"Func", "File", "Extract?" , "cone(V)", "trap(V)","transfer(V)", "WH(V)", "WV(m/s)"
     			}
     			) {
   
@@ -348,44 +392,52 @@ public class CIUGenFrame extends javax.swing.JFrame
 
     	// jPanel 3:
     	jPanel3.setLayout(new java.awt.BorderLayout());
-
-    	jLabel2.setText("Available Actions:");
+    	jLabel2.setText("Extr Modes:");
     	jPanel3.add(jLabel2, java.awt.BorderLayout.WEST);
 
-    	multiRangeRunButton.addActionListener(new java.awt.event.ActionListener() {
-    		public void actionPerformed(java.awt.event.ActionEvent evt) {
-    			runExtractorButton(evt);
-    		}
-    	});
-    	multiRangeRunButton.setText("Extract DT data");
-    	multiRangeRunButton.setToolTipText("Extracts 1-dimensional drift time chromatogram (collapses all MS and RT information). "
-    			+ "Will open a dialog to select the range or rule file with the range(s) to extract. ");
-    	spectrumButton.addActionListener(new java.awt.event.ActionListener(){
-    		public void actionPerformed(java.awt.event.ActionEvent evt){
-    			runSpectrumExtractorButton(evt);
-    		}
-    	});
-    	spectrumButton.setText("Extract MS data");
-    	spectrumButton.setToolTipText("Extracts 1-dimensional mass spectrum data (collapses all RT and DT information). "
-    			+ "Will open a dialog to select the range or rule file with the range(s) to extract.");
+    	// initialize the various extract data (run) buttons
+    	initRunButtons();
+    	runPanel.add(runButton_MZ);
+    	runPanel.add(runButton_DT);
+    	runPanel.add(runButton_RT);
+    	runPanel.add(runButton_DTMZ);
+    	jPanel3.add(runPanel, java.awt.BorderLayout.EAST);
     	
-    	
-    	jPanel3.add(spectrumButton, java.awt.BorderLayout.EAST);
-    	jPanel3.add(multiRangeRunButton, java.awt.BorderLayout.CENTER);
-
     	// Initialize check boxes
     	initCheckBoxes();
  
     	jPanel3.add(checkBoxPanel, java.awt.BorderLayout.SOUTH);
-    	
-    	jPanel2.add(jPanel3, java.awt.BorderLayout.NORTH);
+//    	jPanel2.add(jPanel3, java.awt.BorderLayout.NORTH);
     	
     	getContentPane().add(jPanel2, java.awt.BorderLayout.WEST);
     	getContentPane().add(tabbedPane, java.awt.BorderLayout.CENTER);
-//    	getContentPane().add(jPanel3, java.awt.BorderLayout.EAST);
+    	getContentPane().add(jPanel3, java.awt.BorderLayout.SOUTH);
 
     	pack();
     }// </editor-fold>//GEN-END:initComponents
+    
+    private void initRunButtons(){
+    	runButton_DT.addActionListener(runButtonActionListener);
+    	runButton_DT.setText("Extract DT");
+    	runButton_DT.setToolTipText("Extracts a 1-dimensional drift time distribution (collapses all MS and RT information). "
+    			+ "Will open a dialog to select the range or rule file with the range(s) to extract. ");
+    	
+    	runButton_MZ.addActionListener(runButtonActionListener);
+    	runButton_MZ.setText("Extract MS");
+    	runButton_MZ.setToolTipText("Extracts a 1-dimensional mass spectrum (collapses all RT and DT information). "
+    			+ "Will open a dialog to select the range or rule file with the range(s) to extract.");
+    	
+    	runButton_RT.addActionListener(runButtonActionListener);
+    	runButton_RT.setText("Extract RT");
+    	runButton_RT.setToolTipText("Extracts a 1-dimensional retention time chromatogram (collapses all MZ and DT information). "
+    			+ "Will open a dialog to select the range or rule file with the range(s) to extract.");
+    	
+    	runButton_DTMZ.addActionListener(runButtonActionListener);
+    	runButton_DTMZ.setText("Extract 2D DT+MS");
+    	runButton_DTMZ.setToolTipText("Extracts 2-dimensional drift time/mass spectrum data (collapses RT only). "
+    			+ "Will open a dialog to select the range or rule file with the range(s) to extract.");
+    	
+    }
     
     private void initMenus(){
 		// Menu items
@@ -534,6 +586,9 @@ public class CIUGenFrame extends javax.swing.JFrame
     			} 
     		}
     	};
+    	checkBoxLabel = new javax.swing.JLabel();
+    	checkBoxLabel.setText("Save info:");
+    	checkBoxPanel.add(checkBoxLabel);
     	
     	// Initialize check box GUI components to starting states and set tool tip information
     	trapcvCheckBox.setText("Trap CV");
@@ -645,13 +700,15 @@ public class CIUGenFrame extends javax.swing.JFrame
 	}
 
 	/**
-     * Method to extract specified data when the user hits the 'extract data' button. If lockmass correction
-     * is being used, handles that; otherwise just extracts data. Passes the raw files to extract, range files,
-     * and desired outputs to IMExtractRunner.
+     * Method to extract specified data when the user hits one of the data extraction/run buttons.
+     * Determines which range/rule mode has been specified and passes the set of range/rule files
+     * on to the loop helper. 
      * @param evt
      */
-    private void runExtractorButton(java.awt.event.ActionEvent evt){
+    private void runExtractorButton(java.awt.event.ActionEvent evt, int extractionMode){
     	statusTextBar.setText("...Analyzing Data (may take a minute)...");
+		System.out.println("Analyzing data (may take some time)");
+
     	rangefc.setCurrentDirectory(new File(rangeFileDirectory));
     	rulefc.setCurrentDirectory(new File(ruleFileDirectory));
 
@@ -659,7 +716,7 @@ public class CIUGenFrame extends javax.swing.JFrame
     		// Choose rule files for spectrum if in rule mode, or run extractor without if not
     		if(rulefc.showDialog(this,"OK") == 0){
     			File[] ruleFiles = rulefc.getSelectedFiles();
-    			runExtractHelper(ruleFiles);
+    			runExtraction(ruleFiles, extractionMode);
     		}   
     	} else {
     		// open file chooser to pick the range files
@@ -667,38 +724,124 @@ public class CIUGenFrame extends javax.swing.JFrame
     		{
     			File[] rangeFiles = rangefc.getSelectedFiles();
     			// Run regular 1DDT extraction unless we're in spectrum mode, in which case run 1DMS extraction
-    			runExtractHelper(rangeFiles);
-
+    			runExtraction(rangeFiles, extractionMode);
     		}	
     	}
+    	System.out.println("Done!");
+		statusTextBar.setText("Done!");
+	
+		//One last thing - clean all the temp files out of the root folder
+		cleanRoot();
     }  
-    
-    /**
-     * Handler for 1D MS mode extractions from "MS" button. Passes to helper methods that handle extraction
-     * of 1D MS data, using rule files or range files as indicated by the user. 
-     * @param evt
-     */
-    private void runSpectrumExtractorButton(java.awt.event.ActionEvent evt){
-    	statusTextBar.setText("...Analyzing Data (may take a minute)...");
-    	rangefc.setCurrentDirectory(new File(rangeFileDirectory));
-    	rulefc.setCurrentDirectory(new File(ruleFileDirectory));
 
-    	// open file chooser to pick the range files
-    	// Choose rule files for spectrum
-    	if (ruleMode){
-    		if(rulefc.showDialog(this,"OK") == 0){
-    			File[] ruleFiles = rulefc.getSelectedFiles();
-    			runSpectrumExtractHelper(ruleFiles);
-    		}
-    	} else {
-    		if(rangefc.showDialog(this, "OK") == 0)	{
-    			File[] rangeFiles = rangefc.getSelectedFiles();
-    			runSpectrumExtractHelper(rangeFiles);
-    		}
-    	}	
-    }
+    /*
+	 * Execute the extraction loop - count through the range/rule files to be handled
+	 */
+	private void runExtraction(File[] rangeORruleFiles, int extractionMode){	
+		int counter = 0;
+		for (File rangeFile : rangeORruleFiles){
+			combinedLoopHelper(rangeFile, rangeORruleFiles.length, extractionMode);
+			counter++;
+			System.out.println("\n" + "Completed Range/Rule File " + counter + " of " + rangeORruleFiles.length + "\n");
+		}
+	}
 
-    /**
+	/*
+	 * Input and output file handling and calls the actual extractor (IMExtractRunner) to do the 
+	 * extractions specified by the range/rule files and extraction_mode. 
+	 */
+	private void combinedLoopHelper(File rangeFile, int length, int extraction_mode){
+		ArrayList<DataVectorInfoObject> allFunctions = new ArrayList<DataVectorInfoObject>();
+		String rangePath = "";
+		try {
+			rangePath = rangeFile.getCanonicalPath();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		String rangeFileName = rangeFile.getName();     				
+		String csvOutName = rangeFileName + "#";       				
+
+		// run imextract to extract a full mobiligram for each selected function in the functions table
+		DefaultTableModel funcsModel = (DefaultTableModel)functionsTable.getModel();
+		Vector<?> dataVector = funcsModel.getDataVector();
+		IMExtractRunner imextractRunner = IMExtractRunner.getInstance();
+		String rawName = rawPaths.get(0);
+		String trimmedName = rawName; 
+
+		for( int i=0; i<dataVector.size(); i++ ) {
+			// Get the current data table row and its function information
+			Vector<?> row = (Vector<?>)dataVector.get(i);
+			int function = (int)row.get(FN_TABLE);  
+			boolean selected = (boolean)row.get(SELECT_TABLE);
+			rawName = (String)row.get(FILENAME_TABLE);
+			trimmedName = rawName;
+			String rawDataPath = rawPaths.get(i);
+			File rawFile = new File(rawDataPath);
+			double conecv = (double) row.get(CONECV_TABLE);
+			double trapcv = (double)row.get(TRAPCV_TABLE);
+			double transfcv = (double) row.get(TRANSFCV_TABLE);
+			double wv = (double) row.get(WV_TABLE);
+			double wh = (double) row.get(WH_TABLE);
+			boolean[] infoTypes = {useConeCV,useTrapCV,useTransfCV,useWavevel,useWaveht};
+
+			//Now get the ranges from each range file
+			double[] rangesArr = null;
+			if (ruleMode){
+				// Call IMExtractRunner to generate a ranges.txt file in the root directory with the full ranges
+				IMExtractRunner.getFullDataRanges(rawFile, function);
+				// Read the full ranges.txt file generated
+				String rangeLocation = preferences.getROOT_PATH() + File.separator + "ranges.txt";
+				rangesArr = IMExtractRunner.readDataRanges(rangeLocation);
+			} else {
+				rangesArr = IMExtractRunner.readDataRanges(rangePath);
+				System.out.println("Using Range File '" + rangeFileName);
+				
+			}
+			if (printRanges){
+				IMExtractRunner.PrintRanges(rangesArr);
+			}
+
+			// Single file output mode: create the output file and call the extractor inside the loop
+			if (selected){
+				DataVectorInfoObject functionInfo = new DataVectorInfoObject(rawDataPath, rawName,function,selected,conecv,trapcv,transfcv,wh,wv,rangesArr,rangeFileName,infoTypes);
+				allFunctions.add(functionInfo);
+
+				if (! combine_outputs){
+					// Pass a new list with only one function's info to the extractor
+					ArrayList<DataVectorInfoObject> singleFunctionVector = new ArrayList<DataVectorInfoObject>();
+					singleFunctionVector.add(functionInfo);
+					
+					// Make output directory folder to save files into if needed		
+					File outputDir = new File(outputDirectory + File.separator + trimmedName);
+					if (!outputDir.exists()){
+						outputDir.mkdirs();
+					}
+					csvOutName = outputDir + File.separator + rangeFileName + "_#" + rawName + "_raw.csv";						
+
+					// Call the extractor
+					imextractRunner.extractMobiligramOneFile(singleFunctionVector, csvOutName, ruleMode, rangeFile, extraction_mode);
+				}
+			}
+		}
+		
+		// Combine outputs mode: make directories and call extractor after loop is finished
+		if (combine_outputs){
+			// Make output directory folder to save files into if needed		
+			File outputDir = new File(outputDirectory + File.separator + trimmedName);
+			if (!outputDir.exists()){
+				outputDir.mkdirs();
+			}
+			csvOutName = outputDir + File.separator + rangeFileName + "_#" + rawName + "_raw.csv";						
+			
+			//Once all function info has been gathered, send it to IMExtract
+			imextractRunner.extractMobiligramOneFile(allFunctions,csvOutName, ruleMode, rangeFile, extraction_mode);
+		}
+	}
+
+
+	
+
+	/**
 	 * Method opens a filechooser for the user to select their desired batch csv file, then uses
 	 * the runBatch method to execute the batch run. 
 	 * NOTE: All files will be extracted with the same settings, and all settings (checkboxes/etc)
@@ -788,7 +931,6 @@ public class CIUGenFrame extends javax.swing.JFrame
 	    runExtractHelper(rangeFiles);
 	}
 
-	
 	/**
 	 * Method that actually runs the code for extracting DT files. Allows multiple ways to get the range files
 	 * (e.g. batched vs filechooser) and still have everything go to the same place. 
@@ -802,7 +944,7 @@ public class CIUGenFrame extends javax.swing.JFrame
 		statusTextBar.setText("...Analyzing Data (may take a minute)...");
 		int counter = 1;
 		for (File rangeFile : rangeORruleFiles){
-			DTLoopHelper(rangeFile, rangeORruleFiles.length);
+//			DTLoopHelper(rangeFile, rangeORruleFiles.length);
 			System.out.println("\n" + "Completed Range File " + counter + " of " + rangeORruleFiles.length + "\n");
 			counter++;
 		}
@@ -813,205 +955,6 @@ public class CIUGenFrame extends javax.swing.JFrame
 		cleanRoot();
 	}
 
-	/**
-	 * Loop running helper for 1d DT extractions. Note - rangeFile can refer to range OR rule files
-	 * @param rangeFile
-	 * @param length
-	 */
-	private void DTLoopHelper(File rangeFile, int length){
-		//iterator for the range file number
-		File ruleFile = rangeFile; 
-		ArrayList<DataVectorInfoObject> allFunctions = new ArrayList<DataVectorInfoObject>();
-
-		String rangePath = "";
-		try {
-			rangePath = rangeFile.getCanonicalPath();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		String rangeFileName = rangeFile.getName();     				
-		String csvOutName = rangeFileName + "#";       				
-
-		//Now get the ranges from each range file
-		double[] rangesArr = null;
-		if (ruleMode){
-			// hold off on getting ranges until we have a raw file to read them from
-		} else {
-			rangesArr = IMExtractRunner.readDataRanges(rangePath);
-			System.out.println("Using Range File '" + rangeFileName);
-			if (printRanges){
-				IMExtractRunner.PrintRanges(rangesArr);
-			}
-		}
-		
-		// run imextract to extract a full mobiligram for each selected function in the functions table
-		DefaultTableModel funcsModel = (DefaultTableModel)functionsTable.getModel();
-		Vector<?> dataVector = funcsModel.getDataVector();
-		IMExtractRunner imextractRunner = IMExtractRunner.getInstance();
-		String rawName = rawPaths.get(0);
-		String trimmedName = rawName; 
-
-		for( int i=0; i<dataVector.size(); i++ )
-		{
-			// Get the current data table row and its function information
-			Vector<?> row = (Vector<?>)dataVector.get(i);
-			int function = (int)row.get(FN_TABLE);  
-			boolean selected = (boolean)row.get(SELECT_TABLE);
-			rawName = (String)row.get(FILENAME_TABLE);
-			String rawDataPath = rawPaths.get(i);
-			File rawFile = new File(rawDataPath);
-			double conecv = (double) row.get(CONECV_TABLE);
-			double trapcv = (double)row.get(TRAPCV_TABLE);
-			double transfcv = (double) row.get(TRANSFCV_TABLE);
-			double wv = (double) row.get(WV_TABLE);
-			double wh = (double) row.get(WH_TABLE);
-			boolean[] infoTypes = {useConeCV,useTrapCV,useTransfCV,useWavevel,useWaveht};
-
-			if (ruleMode){
-				// Call IMExtractRunner to generate a ranges.txt file in the root directory with the full ranges
-				IMExtractRunner.getFullDataRanges(rawFile, function);
-				// Read the full ranges.txt file generated
-				String rangeLocation = preferences.getROOT_PATH() + File.separator + "ranges.txt";
-				rangesArr = IMExtractRunner.readDataRanges(rangeLocation);
-			}
-			
-			// Use the intact complex rangefile's charge state as the folder name, not the raw data's in case of mistakes
-			try {
-				trimmedName = rawName.substring(0,rawName.lastIndexOf("_"));  
-//				if (charge != ""){
-//					trimmedName = trimmedName.substring(0,trimmedName.lastIndexOf("_")) + "_" + charge;     						
-//				}
-			} catch (Exception ex){
-				try {
-					trimmedName = rawName.substring(0,rawName.lastIndexOf("_"));    
-				} catch (Exception ex2){
-					trimmedName = rawName;
-				}			
-			}
-
-			
-			// UPDATED - Create the data vector object to hold this info
-			if (selected){
-				DataVectorInfoObject functionInfo = new DataVectorInfoObject(rawDataPath, rawName,function,selected,conecv,trapcv,transfcv,wh,wv,rangesArr,rangeFileName,infoTypes);
-				allFunctions.add(functionInfo);
-			}
-		}
-		// Added output directory folder to save files into		
-		File outputDir = new File(outputDirectory + File.separator + trimmedName);
-		if (!outputDir.exists()){
-			outputDir.mkdirs();
-		}
-
-		csvOutName = outputDir + File.separator + rangeFileName + "_#" + rawName + "_raw.csv";						
-
-		// UPDATED - Once all function info has been gathered, send it to IMExtract
-		imextractRunner.extractMobiligramOneFile(allFunctions,csvOutName, ruleMode, ruleFile);
-
-	}
-
-	/**
-	 * Method to extract 1D MS spectra rather than 1DDT files, using the same conventions and setup
-	 * as the more common 1D DT file method (runExtactHelper). No support for lockmass (though it
-	 * could be implemented later if needed)
-	 * @param rangeFiles
-	 */
-	private void runSpectrumExtractHelper(File[] rangeFiles){
-		// No lockmass check, so extract data and whatever information desired by the user
-		statusTextBar.setText("...Analyzing Data (may take a minute)...");
-		System.out.println("Analyzing Data (may take some time)");
-		//iterator for the range file number
-		int rangeFileNumber = 1;
-
-		//get path strings for each file
-		for (File rangeFile : rangeFiles){
-			spectrumLoopHelper(rangeFile);	
-			
-			System.out.println("\n" + "Completed Range File " + rangeFileNumber + " of " + rangeFiles.length + "\n");
-			rangeFileNumber++;
-		}
-
-		System.out.println("Done!");
-		statusTextBar.setText("Done!");
-
-		//One last thing - clean all the temp files out of the root folder
-		cleanRoot();
-	}
-	
-
-	/**
-	 * Helper method for runSpectrumExtractHelper - runs the inner loop where extraction happens. 
-	 * Allows for both rule file and non-rule file extractions
-	 * @param rangeFile
-	 * @param charge
-	 * @param ruleFile
-	 */
-	private void spectrumLoopHelper(File rangeFile){
-		// UPDATED
-//		ArrayList<DataVectorInfoObject> allFunctions = new ArrayList<DataVectorInfoObject>();
-
-		String rangePath = null;
-		try {
-			rangePath = rangeFile.getCanonicalPath();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		String rangeFileName = rangeFile.getName();     				
-		String csvOutName = rangeFileName + "#";  
-
-		double[] rangesArr = null;
-		if (ruleMode){
-			// hold off on getting ranges until we have a raw file to read them from
-		} else {
-			rangesArr = IMExtractRunner.readDataRanges(rangePath);
-			System.out.println("Using Range File '" + rangeFileName);
-			if (printRanges){
-				IMExtractRunner.PrintRanges(rangesArr);
-			}
-		}
-
-		// run imextract to extract a full mobiligram for each selected function in the functions table
-		DefaultTableModel funcsModel = (DefaultTableModel)functionsTable.getModel();
-		Vector<?> dataVector = funcsModel.getDataVector();
-		IMExtractRunner imextractRunner = IMExtractRunner.getInstance();
-
-		for( int i=0; i<dataVector.size(); i++ )
-		{
-			// Get the current data table row and its function information
-			Vector<?> row = (Vector<?>)dataVector.get(i);
-			int function = (int)row.get(FN_TABLE);  
-			boolean selected = (boolean)row.get(SELECT_TABLE);
-			String rawName = (String)row.get(FILENAME_TABLE);
-			String rawDataPath = rawPaths.get(i);
-			File rawFile = new File(rawDataPath);
-			if (ruleMode){
-				// Call IMExtractRunner to generate a ranges.txt file in the root directory with the full ranges
-				IMExtractRunner.getFullDataRanges(rawFile, function);
-				// Read the full ranges.txt file generated by IMSExtract
-				String rangeLocation = preferences.getROOT_PATH() + File.separator + "ranges.txt";
-				rangesArr = IMExtractRunner.readDataRanges(rangeLocation);
-			}
-			
-			// Use the intact complex rangefile's charge state as the folder name, not the raw data's in case of mistakes
-			String trimmedName;
-			try {
-				trimmedName = rawName.substring(0,rawName.lastIndexOf("_"));  
-			} catch (Exception ex){
-					trimmedName = rawName;			
-			}
-
-			// Added output directory folder to save files into		
-			File outputDir = new File(outputDirectory + File.separator + trimmedName + "_MS");
-			if (!outputDir.exists()){
-				outputDir.mkdirs();
-			}
-			csvOutName = outputDir + File.separator + rangeFileName + "_#" + rawName + "_msraw.csv";						
-
-			if (selected){
-				imextractRunner.extractSpectrum(rawDataPath, function, csvOutName, rangesArr, rangeFileName, rangeFile);
-			}
-		}
-	}
-	    
 	/*
      * Removes all temporary ".1dDT" files in the root directory once the program has finished.
      */
@@ -1309,15 +1252,24 @@ public class CIUGenFrame extends javax.swing.JFrame
     private javax.swing.JTable functionsTable;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
-    private javax.swing.JPanel jPanel1;
+    private javax.swing.JLabel checkBoxLabel;
+    private javax.swing.JPanel topPanel;
+    private javax.swing.JPanel jPanel1_top;
+    private javax.swing.JPanel jPanel1_bottom;
     private javax.swing.JPanel jPanel2;
     private javax.swing.JPanel jPanel3;
+    private javax.swing.JPanel runPanel;
     private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JTextField statusTextBar;
-//    private javax.swing.JButton runButton;
+    private javax.swing.JLabel ruleModeLabel;
+    private javax.swing.JTextField ruleModeTextField;
+    private javax.swing.JLabel combineModeLabel;
+	private javax.swing.JTextField combineModeTextField;
     private javax.swing.JTabbedPane tabbedPane;
-    private javax.swing.JButton multiRangeRunButton; //EDIT - added
-    private javax.swing.JButton spectrumButton;
+    private javax.swing.JButton runButton_DT; 
+    private javax.swing.JButton runButton_MZ;
+    private javax.swing.JButton runButton_RT;
+    private javax.swing.JButton runButton_DTMZ;
     private javax.swing.JCheckBox trapcvCheckBox;
     private javax.swing.JCheckBox transfcvCheckBox;
     private javax.swing.JCheckBox conecvCheckBox;

@@ -48,9 +48,10 @@ public class IMExtractRunner
     public static final int DT_BINS = 8;
     
     // Trace data types
-    public static int nDATA_1D_RT = 0;
-    public static int nDATA_1D_DT = 1;
-    public static int nDATA_1D_MZ = 2;
+    public static int RT_MODE = 0;
+    public static int DT_MODE = 1;
+    public static int MZ_MODE = 2;
+    public static int DTMZ_MODE = 3;
     
     // Range values 
     private static double minMZ = 0.0;
@@ -902,7 +903,7 @@ public class IMExtractRunner
     	// Generate a spectrum for the full data
     	String specPath = generateMZ(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], selectRegion);
 
-        double[][] data = getTraceData(specPath, nDATA_1D_MZ);
+        double[][] data = getTraceData(specPath, MZ_MODE);
         
         return data;
     }
@@ -923,7 +924,7 @@ public class IMExtractRunner
     	// Generate a spectrum for the full data
     	String specPath = generateMZ(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], selectRegion);
 
-        double[][] data = getTraceData(specPath, nDATA_1D_MZ);
+        double[][] data = getTraceData(specPath, MZ_MODE);
         
         return data;
     }
@@ -944,7 +945,7 @@ public class IMExtractRunner
     	// Generate a spectrum for the full data
     	String specPath = generateMZ(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], selectRegion, ruleFile);
 
-        double[][] data = getTraceData(specPath, nDATA_1D_MZ);
+        double[][] data = getTraceData(specPath, MZ_MODE);
         
         return data;
     }
@@ -967,7 +968,7 @@ private double[][] generateReplicateMobiligram(String rawPath, int nfunction, in
 	// Generate a spectrum for the full data
 	String specPath = generateDT(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], selectRegion, null);
 
-	double[][] data = getTraceData(specPath, nDATA_1D_DT);
+	double[][] data = getTraceData(specPath, DT_MODE);
 
 	return data;
 	}
@@ -988,7 +989,7 @@ private double[][] generateReplicateMobiligram(String rawPath, int nfunction, in
 	// Generate a spectrum for the full data
 	String specPath = generateDT(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], selectRegion, ruleFile);
 
-	double[][] data = getTraceData(specPath, nDATA_1D_DT);
+	double[][] data = getTraceData(specPath, DT_MODE);
 
 	return data;
 	}
@@ -1043,15 +1044,15 @@ private double[][] generateReplicateMobiligram(String rawPath, int nfunction, in
 //        	System.exit(0);
         }
         
-        if( nType == nDATA_1D_RT )
+        if( nType == RT_MODE )
         {
             nBins = nRTBins;
         }
-        if( nType == nDATA_1D_DT )
+        if( nType == DT_MODE )
         {
             nBins = nDTBins;
         }
-        if( nType == nDATA_1D_MZ )
+        if( nType == MZ_MODE )
         {
             nBins = nMZBins;
         }
@@ -1367,25 +1368,23 @@ private double[][] generateReplicateMobiligram(String rawPath, int nfunction, in
     }
     
     /**
-     * Fourth (third is CIUGenDan Version) extract Mobiligram method that takes an additional input (the ranges file) and extracts
-     * a specfic set of ranges. Saves all outputs to a single file specified by outputfilepath
+     * Updated extract Mobiligram method that takes a list of functions to analyze (length 1 for single
+     * file analyses), calls the appropriate helper methods based on the extraction mode, then combines
+     * the returned (extracted) data for writing to an output file specified by the output path. 
      * Does NOT use collision energy
-     * @param rawDataFilePath: the system path to the raw data
-     * @param function: the MassLynx function to be read
-     * @param outputFilePath: the name of the output file
-     * @param collisionEnergy: the collision energy of this mobiligram
-     * @param rangeVals: the ranges array used to generate this mobiligram slice
-     * @param rangeName: the name of the range file used - passed to create new .1dDT file to prevent strange bugs on overwriting
+     * @param allFunctions = the list of functions (data) to be extracted with all their associated information in DataVectorInfoObject format
+     * @param outputFilePath = where to write the output file
+     * @param ruleMode = whether to use range files or rule files for extracting
+     * @param ruleFile = the rule OR range file being used for the extraction
+     * @param extraction_mode = the type of extraction to be done (DT, MZ, RT, or DTMZ)
      */
-    public void extractMobiligramOneFile(ArrayList<DataVectorInfoObject> allFunctions, String outputFilePath, boolean ruleMode, File ruleFile) 
-    {
+    public void extractMobiligramOneFile(ArrayList<DataVectorInfoObject> allFunctions, String outputFilePath, boolean ruleMode, File ruleFile, int extractionMode){
     	int HEADER_LENGTH = 1;
     	String lineSep = System.getProperty("line.separator");
+    	
     	// Get info types to print from first function (they will be the same for all functions)
     	boolean[] infoTypes = allFunctions.get(0).getInfoTypes();
-    	try 
-    	{
-
+    	try {
     		// Collect mobData for all functions in the list
     		ArrayList<MobData> allMobData = new ArrayList<MobData>();
 
@@ -1403,11 +1402,24 @@ private double[][] generateReplicateMobiligram(String rawPath, int nfunction, in
     			String rangeName = function.getRangeName();
     			
     			double[][] data = null;
-    			if (ruleMode){
-        			data = generateReplicateMobiligram(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, ruleFile);
-    			} else {
-        			data = generateReplicateMobiligram(rawDataFilePath, functionNum, 0, false, rangeVals, rangeName);
+    			if (extractionMode == DT_MODE){
+    				if (ruleMode){
+            			data = generateReplicateMobiligram(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, ruleFile);
+        			} else {
+            			data = generateReplicateMobiligram(rawDataFilePath, functionNum, 0, false, rangeVals, rangeName);
+        			}
+    			} else if (extractionMode == MZ_MODE){
+    				if (ruleMode){
+            			data = generateReplicateSpectrum(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, ruleFile);
+        			} else {
+            			data = generateReplicateSpectrum(rawDataFilePath, functionNum, 0, false, rangeVals, rangeName);
+        			}
+    			} else if (extractionMode == RT_MODE){
+    				
+    			} else if (extractionMode == DTMZ_MODE){
+    				
     			}
+    			
     			if (data == null){
     				System.out.println("Error during extraction! Check your raw data - it might be empty or corrupted");
     			}
@@ -1449,10 +1461,7 @@ private double[][] generateReplicateMobiligram(String rawPath, int nfunction, in
     		
     		// ADD HEADER INFORMATION AND BIN NUMBERS TO THE LINES
     		int lineIndex = 0;
-    		
-    		
-    		
-    		
+
     		// NEW TEST VERSION - looks like this actually works. Will test for a while before deleted old version
     		
     		// allMobData.get(0) is fine, but .getMobdata() returns null, so get length fails
@@ -1484,9 +1493,6 @@ private double[][] generateReplicateMobiligram(String rawPath, int nfunction, in
 //            		lineIndex++;
 //        		}
 //    		}
-    		
-    		
-    		
     		
     		// Convert to array from arraylist
     		String[] strings = new String[1];
@@ -1576,22 +1582,18 @@ private double[][] generateReplicateMobiligram(String rawPath, int nfunction, in
 
     }
 
-	//    
-	    
-	    //    
+    /**
+     * Returns an array of the last data ranges run
+     * @return 
+     */
+    public double[] getLastRanges()
+    {
+    	double[] ranges = new double[]{minMZ, maxMZ, mzBins, minRT, maxRT, rtBins, minDT, maxDT, dtBins};
 
-/**
- * Returns an array of the last data ranges run
- * @return 
- */
-public double[] getLastRanges()
-{
-    double[] ranges = new double[]{minMZ, maxMZ, mzBins, minRT, maxRT, rtBins, minDT, maxDT, dtBins};
-    
-    return ranges;
-}
+    	return ranges;
+    }
 
-	/**
+    /**
      * This method is used to collapse a mobility raw file
      * retaining the drift time dimension. This will be used on infusion mobility data.
      * The collapsed data is then peak detected
