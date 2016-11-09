@@ -34,6 +34,8 @@ public class Preferences
   private String BIN_PATH;
   private String CONFIG_PATH;
   private String ROOT_PATH;
+  private String HELP_PATH;
+  private String EXAMPLE_PATH;
   
   private static final String RAW_TITLE = "Raw_Directory";
   private static final String RANGE_TITLE = "Range_Directory";
@@ -50,6 +52,8 @@ public class Preferences
     this.xml = new File(this.CONFIG_PATH + "\\preferences.xml");
     this.ROOT_PATH = (this.CIUGEN_HOME + "\\root");
     this.txtconfig = new File (this.CONFIG_PATH + "\\config.txt");
+    this.HELP_PATH = (this.CIUGEN_HOME + "\\TWIMExtract_help.txt");
+    this.EXAMPLE_PATH = (this.CIUGEN_HOME + "\\TWIMExtract_RangeExample.txt");
     
     // Read any existing configuration preferences
     readConfig(txtconfig);
@@ -276,5 +280,21 @@ public String getRuleDir() {
 
 public void setRuleDir(String ruleDir) {
 	this.ruleDir = ruleDir;
+}
+
+public String getHELP_PATH() {
+	return HELP_PATH;
+}
+
+public void setHELP_PATH(String hELP_PATH) {
+	HELP_PATH = hELP_PATH;
+}
+
+public String getEXAMPLE_PATH() {
+	return EXAMPLE_PATH;
+}
+
+public void setEXAMPLE_PATH(String eXAMPLE_PATH) {
+	EXAMPLE_PATH = eXAMPLE_PATH;
 }
 }
