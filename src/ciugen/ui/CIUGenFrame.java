@@ -240,10 +240,11 @@ public class CIUGenFrame extends javax.swing.JFrame
 				if (ruleMode){
 					ruleMode = false;
 					statusTextBar.setText("Range File Mode (.txt)");
-
+					ruleModeTextField.setText("Range Mode");
 				} else {
 					ruleMode = true;
 					statusTextBar.setText("Selection Rule Mode (.rul)");
+					ruleModeTextField.setText("Rule Mode");
 				}
 				
 			} else if (e.getSource() == helpItem){
@@ -280,9 +281,10 @@ public class CIUGenFrame extends javax.swing.JFrame
 				runExtractorButton(e, IMExtractRunner.MZ_MODE);
 			} else if (e.getSource() == runButton_RT){
 				runExtractorButton(e, IMExtractRunner.RT_MODE);
-			} else if (e.getSource() == runButton_DTMZ){
-				runExtractorButton(e, IMExtractRunner.DTMZ_MODE);
-			}
+			} 
+//			else if (e.getSource() == runButton_DTMZ){
+//				runExtractorButton(e, IMExtractRunner.DTMZ_MODE);
+//			}
 		}
 		
 	}
@@ -313,7 +315,7 @@ public class CIUGenFrame extends javax.swing.JFrame
     	runButton_DT = new javax.swing.JButton(); 
     	runButton_MZ = new javax.swing.JButton();
     	runButton_RT = new javax.swing.JButton();
-    	runButton_DTMZ = new javax.swing.JButton();
+//    	runButton_DTMZ = new javax.swing.JButton();
     	
     	trapcvCheckBox = new javax.swing.JCheckBox();
     	transfcvCheckBox = new javax.swing.JCheckBox();
@@ -392,7 +394,7 @@ public class CIUGenFrame extends javax.swing.JFrame
 
     	// jPanel 3:
     	jPanel3.setLayout(new java.awt.BorderLayout());
-    	jLabel2.setText("Extr Modes:");
+    	jLabel2.setText("Choose an Extraction Mode to run:");
     	jPanel3.add(jLabel2, java.awt.BorderLayout.WEST);
 
     	// initialize the various extract data (run) buttons
@@ -400,7 +402,7 @@ public class CIUGenFrame extends javax.swing.JFrame
     	runPanel.add(runButton_MZ);
     	runPanel.add(runButton_DT);
     	runPanel.add(runButton_RT);
-    	runPanel.add(runButton_DTMZ);
+//    	runPanel.add(runButton_DTMZ);
     	jPanel3.add(runPanel, java.awt.BorderLayout.EAST);
     	
     	// Initialize check boxes
@@ -432,10 +434,10 @@ public class CIUGenFrame extends javax.swing.JFrame
     	runButton_RT.setToolTipText("Extracts a 1-dimensional retention time chromatogram (collapses all MZ and DT information). "
     			+ "Will open a dialog to select the range or rule file with the range(s) to extract.");
     	
-    	runButton_DTMZ.addActionListener(runButtonActionListener);
-    	runButton_DTMZ.setText("Extract 2D DT+MS");
-    	runButton_DTMZ.setToolTipText("Extracts 2-dimensional drift time/mass spectrum data (collapses RT only). "
-    			+ "Will open a dialog to select the range or rule file with the range(s) to extract.");
+//    	runButton_DTMZ.addActionListener(runButtonActionListener);
+//    	runButton_DTMZ.setText("Extract 2D DT+MS");
+//    	runButton_DTMZ.setToolTipText("Extracts 2-dimensional drift time/mass spectrum data (collapses RT only). "
+//    			+ "Will open a dialog to select the range or rule file with the range(s) to extract.");
     	
     }
     
@@ -1269,7 +1271,7 @@ public class CIUGenFrame extends javax.swing.JFrame
     private javax.swing.JButton runButton_DT; 
     private javax.swing.JButton runButton_MZ;
     private javax.swing.JButton runButton_RT;
-    private javax.swing.JButton runButton_DTMZ;
+//    private javax.swing.JButton runButton_DTMZ;
     private javax.swing.JCheckBox trapcvCheckBox;
     private javax.swing.JCheckBox transfcvCheckBox;
     private javax.swing.JCheckBox conecvCheckBox;
