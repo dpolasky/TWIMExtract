@@ -51,6 +51,14 @@ public class CIUGenFrame extends javax.swing.JFrame
 {	
 	private static final String TITLE = "TWIMExtract v0.1";
 	
+	// timing check globals
+	private static long startTime;
+	private long initComps;
+	private long extrStart;
+	private long extrEnd;
+	private long oldRangesBefore;
+	
+	
 	private static final long serialVersionUID = -1971838044338723234L;
 	private JFileChooser fc = null;
     private JFileChooser rangefc = null;
@@ -73,12 +81,13 @@ public class CIUGenFrame extends javax.swing.JFrame
     private boolean useConeCV;
     private boolean useWavevel;
     private boolean useWaveht;
-    
+
     // Mode settings
-    private boolean printRanges = false;
+    private boolean verboseMode = false;
     private boolean ruleMode = false;
-    private int chosen_extraction_mode;
-    private boolean combine_outputs;
+    private boolean combine_outputs = true;
+    private boolean newRangefileMode = true;	// if false, allows legacy format range files (9 fields) to be used instead of new range files (6 fields)
+	private boolean fastMode = true;	// Determines how often to check the # of bins (fast = at the start of a new raw file, otherwise it's done for each function)
 
     // global file information
     private ArrayList<String> rawPaths;
@@ -91,12 +100,6 @@ public class CIUGenFrame extends javax.swing.JFrame
     private static final int CONECV_SPLITS = 2;
     private static final int SELECTED_SPLITS  = 1;
     private static final int FN_SPLITS = 0;
-    
-//    // Mode identifier constants
-//    private static final int DT_MODE = 0;
-//    private static final int MZ_MODE = 1;
-//    private static final int RT_MODE = 2;
-//    private static final int DTMZ_MODE = 3;
     
     // String locations for table model (includes filename) - has to be in this order because that's the order it displays in the GUI
     private static final int FN_TABLE = 0;
@@ -113,7 +116,7 @@ public class CIUGenFrame extends javax.swing.JFrame
 	private JMenu fileMenu;
 	private JMenu batchMenu;
 	private JMenu optionMenu;
-	private JMenu selectionMenu;
+	private JMenu advancedMenu;
 	private JMenu helpMenu;
 	private JMenuItem helpItem;
 	private JMenuItem exampleItem;
@@ -126,6 +129,9 @@ public class CIUGenFrame extends javax.swing.JFrame
 	private JMenuItem ruleDirItem;
 	private JMenuItem printRangeOptionItem;
 	private JMenuItem toggleRulesItem;
+	private JMenuItem toggleCombineItem;
+	private JMenuItem fastModeItem;
+	private JMenuItem legacyRangeItem;
 	private MenuActions menuActionListener = new MenuActions();
 	private runButtonActions runButtonActionListener = new runButtonActions();
 	
@@ -226,13 +232,13 @@ public class CIUGenFrame extends javax.swing.JFrame
 				runBatchCSV();
 				
 			} else if (e.getSource() == printRangeOptionItem){
-				// Change (toggle) the range printing behavior
-				if (printRanges){
-					printRanges = false;
-					System.out.println("Range printing has been turned OFF");
+				// Change (toggle) the range and time printing to terminal
+				if (verboseMode){
+					verboseMode = false;
+					System.out.println("Verbose mode has been turned OFF");
 				} else {
-					printRanges = true;
-					System.out.println("Range printing has been turned ON");
+					verboseMode = true;
+					System.out.println("Verbose mode has been turned ON");
 				}
 				
 			} else if ((e.getSource()) == toggleRulesItem){
@@ -247,7 +253,37 @@ public class CIUGenFrame extends javax.swing.JFrame
 					ruleModeTextField.setText("Rule Mode");
 				}
 				
-			} else if (e.getSource() == helpItem){
+			} else if (e.getSource() == toggleCombineItem){
+				// Toggle (switch) the combined outputs mode flag
+				if (combine_outputs){
+					combine_outputs = false;
+					statusTextBar.setText("Now using individual outputs mode");
+					combineModeTextField.setText("No");
+				} else {
+					combine_outputs = true;
+					statusTextBar.setText("Now using combined output mode");
+					combineModeTextField.setText("Yes");
+				}			
+				
+			} else if (e.getSource() == fastModeItem){
+				if (fastMode){
+					fastMode = false;
+					statusTextBar.setText("Careful/slower mode enabled");
+				} else {
+					fastMode = true;
+					statusTextBar.setText("Standard (fast) mode enabled");
+				}
+			} else if (e.getSource() == legacyRangeItem){
+				if (newRangefileMode){
+					newRangefileMode = false;
+					statusTextBar.setText("Now using LEGACY range files (9 fields)");
+				} else {
+					newRangefileMode = true;
+					statusTextBar.setText("Now using standard range files (6 fields)");
+				}
+			} 
+			
+			else if (e.getSource() == helpItem){
 				// Open the help file included in the main CIUGen directory on install
 				ProcessBuilder helpRunner = new ProcessBuilder("notepad.exe", preferences.getHELP_PATH());
 				try {
@@ -282,9 +318,6 @@ public class CIUGenFrame extends javax.swing.JFrame
 			} else if (e.getSource() == runButton_RT){
 				runExtractorButton(e, IMExtractRunner.RT_MODE);
 			} 
-//			else if (e.getSource() == runButton_DTMZ){
-//				runExtractorButton(e, IMExtractRunner.DTMZ_MODE);
-//			}
 		}
 		
 	}
@@ -416,6 +449,12 @@ public class CIUGenFrame extends javax.swing.JFrame
     	getContentPane().add(jPanel3, java.awt.BorderLayout.SOUTH);
 
     	pack();
+    	
+    	if (verboseMode){
+    		initComps = System.nanoTime();
+        	System.out.println("init comps time: " + (initComps - startTime)/1000000);	
+    	}
+    	
     }// </editor-fold>//GEN-END:initComponents
     
     private void initRunButtons(){
@@ -456,27 +495,27 @@ public class CIUGenFrame extends javax.swing.JFrame
 		optionMenu.setMnemonic(KeyEvent.VK_A);
 		optionMenu.getAccessibleContext().setAccessibleDescription("Options menu");
 		menuBar.add(optionMenu);
-		selectionMenu = new JMenu("Selection Rules");
-		selectionMenu.setMnemonic(KeyEvent.VK_A);
-		selectionMenu.getAccessibleContext().setAccessibleDescription("Extract using selection rules instead of range files");
-		menuBar.add(selectionMenu);
+		advancedMenu = new JMenu("Advanced");
+		advancedMenu.setMnemonic(KeyEvent.VK_A);
+		advancedMenu.getAccessibleContext().setAccessibleDescription("Advanced options");
+		menuBar.add(advancedMenu);
 		helpMenu = new JMenu("Help");
 		helpMenu.setMnemonic(KeyEvent.VK_A);
 		helpMenu.getAccessibleContext().setAccessibleDescription("Help menu");
 		menuBar.add(helpMenu);
 		
 		// File menu items
-		rawDirItem = new JMenuItem("Set default raw file directory");
+		rawDirItem = new JMenuItem("Set the default directory for browsing .raw data");
 		rawDirItem.addActionListener(menuActionListener);
-		rangeDirItem = new JMenuItem("Set default Range file directory");
+		rangeDirItem = new JMenuItem("Set the default directory to select Range files");
 		rangeDirItem.addActionListener(menuActionListener);
-		outDirItem = new JMenuItem("Set the directory for output files");
+		outDirItem = new JMenuItem("Select Output Directory");
 		outDirItem.addActionListener(menuActionListener);
-		ruleDirItem = new JMenuItem("Set the directory for finding rule files");
+		ruleDirItem = new JMenuItem("Set the default directory to select Rule files");
 		ruleDirItem.addActionListener(menuActionListener);
+		fileMenu.add(outDirItem);  	
 		fileMenu.add(rawDirItem);
 		fileMenu.add(rangeDirItem);
-		fileMenu.add(outDirItem);  	
 		fileMenu.add(ruleDirItem);
 		
 		// Batch menu items
@@ -488,15 +527,24 @@ public class CIUGenFrame extends javax.swing.JFrame
 		batchMenu.add(runBatchItem);
 
 		// Option menu items
-		printRangeOptionItem = new JMenuItem("Toggle range printing on or off");
+		printRangeOptionItem = new JMenuItem("Toggle verbose output mode");
 		printRangeOptionItem.addActionListener(menuActionListener);
+		toggleRulesItem = new JMenuItem("Toggle using Rule or Range files");
+		toggleRulesItem.addActionListener(menuActionListener);
+		toggleCombineItem = new JMenuItem("Toggle Combined or Individual outputs");
+		toggleCombineItem.addActionListener(menuActionListener);
+		optionMenu.add(toggleRulesItem);
+		optionMenu.add(toggleCombineItem);
 		optionMenu.add(printRangeOptionItem);
 		
-		// Spectrum menu items
-		toggleRulesItem = new JMenuItem("Toggle using selection rules or range files");
-		toggleRulesItem.addActionListener(menuActionListener);
-		selectionMenu.add(toggleRulesItem);
-		
+		fastModeItem = new JMenuItem("Toggle standard (fast) or careful range file mode");
+		fastModeItem.setToolTipText("ONLY needed if your functions have significantly varying numbers of bins");
+		fastModeItem.addActionListener(menuActionListener);
+		legacyRangeItem = new JMenuItem("Toggle standard or legacy range files");
+		legacyRangeItem.addActionListener(menuActionListener);
+		advancedMenu.add(fastModeItem);
+		advancedMenu.add(legacyRangeItem);
+
 		// Help menu items
 		helpItem = new JMenuItem("Open help file");
 		helpItem.addActionListener(menuActionListener);
@@ -513,9 +561,10 @@ public class CIUGenFrame extends javax.swing.JFrame
      * Initialize filechoosers for raw and range files using preferences information
      */
     private void initFileChoosers(){
+    	// browse data filechooser
         fc = new JFileChooser();
         fc.setAcceptAllFileFilterUsed(false);
-        fc.setDialogTitle("Select the data file(s) to analyze");
+        fc.setDialogTitle("Select the raw data file(s) to analyze");
         fc.setFileFilter(new RawFileFilter());
         fc.setFileSelectionMode(2);
         
@@ -535,25 +584,25 @@ public class CIUGenFrame extends javax.swing.JFrame
         fc.setMultiSelectionEnabled(true);
         
         rangefc = new JFileChooser();
-        rangefc.setDialogTitle("Select the range text files to use");
+        rangefc.setDialogTitle("Select the RANGE (.txt) file(s) to use for data extraction");
         rangefc.setFileSelectionMode(2);              
         rangefc.setCurrentDirectory(rdir);
         rangefc.setMultiSelectionEnabled(true);
-        rangefc.setFileFilter(new FileNameExtensionFilter("Text files only", "txt"));
+        rangefc.setFileFilter(new FileNameExtensionFilter("Text files only (.txt)", "txt"));
         
         batchfc = new JFileChooser();
-        batchfc.setDialogTitle("Select the batch csv files to use");
+        batchfc.setDialogTitle("Select the batch csv file to use");
         batchfc.setFileSelectionMode(JFileChooser.FILES_ONLY);              
         batchfc.setCurrentDirectory(bdir);
         batchfc.setMultiSelectionEnabled(false);
-        batchfc.setFileFilter(new FileNameExtensionFilter("CSV files only", "csv"));
+        batchfc.setFileFilter(new FileNameExtensionFilter("CSV files only (.csv)", "csv"));
         
         rulefc = new JFileChooser();
-        rulefc.setDialogTitle("Select the Rule files to use");
+        rulefc.setDialogTitle("Select the RULE (.rul) file(s) to use for data extraction");
         rulefc.setFileSelectionMode(JFileChooser.FILES_ONLY);
         rulefc.setCurrentDirectory(ruledir);
         rulefc.setMultiSelectionEnabled(true);
-        rulefc.setFileFilter(new FileNameExtensionFilter("rul files only","rul"));
+        rulefc.setFileFilter(new FileNameExtensionFilter("rul files only (.rul)","rul"));
         
     }
     
@@ -629,6 +678,19 @@ public class CIUGenFrame extends javax.swing.JFrame
     }
        
     /**
+     * GUI method to prompt the user for config information (default input and output directories)
+     * when they try to use the tool without a config file (e.g. first time use). Only the output
+     * directory is required (otherwise outputs will be saved to default directory, which can
+     * be hard to find sometimes). 
+     */
+    private void warnConfig(){
+    	// Show a dialog informing the user that no config files have been generated
+    	JOptionPane.showMessageDialog(browseDataButton, "Warning: No output directory selected. \n Please"
+    			+ " use 'File/Select Output Directory' to choose where your extracted data \n will be saved before running"
+    			+ " the extractor. Thank you!");
+    }
+    
+    /**
      * Opens filechooser for the user to choose the raw files they'd like to extract, then loads those
      * files into the function table using the getAllFunctionInfo parsing method. 
      * @param evt
@@ -638,19 +700,27 @@ public class CIUGenFrame extends javax.swing.JFrame
     	rawPaths.clear();
     	cleanRoot();
     	
+    	// First, make sure the user has chosen an output directory, and prompt them to choose one if not
+    	if (! preferences.haveConfig){
+    		// No config file! Prompt the user to select default directories and stop (return)
+    		warnConfig();
+    		return;
+    	} 
+    	
     	fc.setCurrentDirectory(new File(rawFileDirectory));
     	// First, clear the current data table (EDIT - moved up from further down in method)
     	DefaultTableModel tblModel = (DefaultTableModel)functionsTable.getModel();
-        int rowCount = tblModel.getRowCount();
-        for( int i=0; i<rowCount; i++ ){
-            tblModel.removeRow(0);
-        }
+    	int rowCount = tblModel.getRowCount();
+    	for( int i=0; i<rowCount; i++ ){
+    		tblModel.removeRow(0);
+    	}
 
-        if(fc.showDialog(this, "OK") == 0)
-        {
-        	File[] rawFiles = fc.getSelectedFiles();
-        	openBrowsedData(rawFiles,tblModel);           
-        }
+    	if(fc.showDialog(this, "OK") == 0)
+    	{
+    		File[] rawFiles = fc.getSelectedFiles();
+    		openBrowsedData(rawFiles,tblModel);           
+    	}
+
     }//GEN-LAST:event_browseDataButtonActionPerformed
 
     /**
@@ -708,6 +778,14 @@ public class CIUGenFrame extends javax.swing.JFrame
      * @param evt
      */
     private void runExtractorButton(java.awt.event.ActionEvent evt, int extractionMode){
+    	// Make sure there is data in the table before running
+    	if (functionsTable.getModel().getRowCount() == 0) {
+    		JOptionPane.showMessageDialog(statusTextBar, "No data selected for analysis. \n"
+    				+ "Please use the 'Browse data' button to select data for extraction.");
+    		// Exit the extraction
+    		return;
+    	}
+    	
     	statusTextBar.setText("...Analyzing Data (may take a minute)...");
 		System.out.println("Analyzing data (may take some time)");
 
@@ -716,16 +794,15 @@ public class CIUGenFrame extends javax.swing.JFrame
 
     	if (ruleMode){
     		// Choose rule files for spectrum if in rule mode, or run extractor without if not
-    		if(rulefc.showDialog(this,"OK") == 0){
+    		if(rulefc.showDialog(this,"Select these rule files and extract") == 0){
     			File[] ruleFiles = rulefc.getSelectedFiles();
     			runExtraction(ruleFiles, extractionMode);
     		}   
     	} else {
     		// open file chooser to pick the range files
-    		if(rangefc.showDialog(this, "OK") == 0)	
+    		if(rangefc.showDialog(this, "Select these range files and extract") == 0)	
     		{
     			File[] rangeFiles = rangefc.getSelectedFiles();
-    			// Run regular 1DDT extraction unless we're in spectrum mode, in which case run 1DMS extraction
     			runExtraction(rangeFiles, extractionMode);
     		}	
     	}
@@ -753,6 +830,8 @@ public class CIUGenFrame extends javax.swing.JFrame
 	 * extractions specified by the range/rule files and extraction_mode. 
 	 */
 	private void combinedLoopHelper(File rangeFile, int length, int extraction_mode){
+		extrStart = System.nanoTime();
+		
 		ArrayList<DataVectorInfoObject> allFunctions = new ArrayList<DataVectorInfoObject>();
 		String rangePath = "";
 		try {
@@ -760,8 +839,17 @@ public class CIUGenFrame extends javax.swing.JFrame
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		// File output naming information
 		String rangeFileName = rangeFile.getName();     				
-		String csvOutName = rangeFileName + "#";       				
+		String csvOutName = rangeFileName + "#";     
+		String extr_mode_name = "";
+		if (extraction_mode == IMExtractRunner.DT_MODE){
+			extr_mode_name = "DT";
+		} else if(extraction_mode == IMExtractRunner.MZ_MODE){
+			extr_mode_name = "MZ";
+		} else if(extraction_mode == IMExtractRunner.RT_MODE){
+			extr_mode_name = "RT";
+		}
 
 		// run imextract to extract a full mobiligram for each selected function in the functions table
 		DefaultTableModel funcsModel = (DefaultTableModel)functionsTable.getModel();
@@ -770,7 +858,22 @@ public class CIUGenFrame extends javax.swing.JFrame
 		String rawName = rawPaths.get(0);
 		String trimmedName = rawName; 
 
+		//Now get the ranges from each range file. Initialize bin numbers FROM RAW FILE info
+		double[] rangesArr = new double[9];
+		String rangeLocation = preferences.getROOT_PATH() + File.separator + "ranges.txt";
+		if (! newRangefileMode){
+			oldRangesBefore = System.nanoTime();
+			// Call IMExtractRunner to generate a ranges.txt file in the root directory with the full ranges
+			IMExtractRunner.getFullDataRanges(new File(rawPaths.get(0)), 1);
+			// Read the full ranges.txt file generated
+			rangesArr = IMExtractRunner.readDataRangesOld(rangeLocation);
+			if (verboseMode)
+				System.out.println("full data ranges time: " + (System.nanoTime() - oldRangesBefore)/1000000);
+		}
+		
 		for( int i=0; i<dataVector.size(); i++ ) {
+			long extrStartLoop = System.nanoTime();
+
 			// Get the current data table row and its function information
 			Vector<?> row = (Vector<?>)dataVector.get(i);
 			int function = (int)row.get(FN_TABLE);  
@@ -786,20 +889,24 @@ public class CIUGenFrame extends javax.swing.JFrame
 			double wh = (double) row.get(WH_TABLE);
 			boolean[] infoTypes = {useConeCV,useTrapCV,useTransfCV,useWavevel,useWaveht};
 
-			//Now get the ranges from each range file
-			double[] rangesArr = null;
-			if (ruleMode){
-				// Call IMExtractRunner to generate a ranges.txt file in the root directory with the full ranges
+			// Careful mode: fast mode assumes same bin size for each function. Careful mode recalculates each time. 
+			if (! fastMode){
 				IMExtractRunner.getFullDataRanges(rawFile, function);
-				// Read the full ranges.txt file generated
-				String rangeLocation = preferences.getROOT_PATH() + File.separator + "ranges.txt";
-				rangesArr = IMExtractRunner.readDataRanges(rangeLocation);
-			} else {
-				rangesArr = IMExtractRunner.readDataRanges(rangePath);
-				System.out.println("Using Range File '" + rangeFileName);
-				
+				System.out.println("full data ranges time: " + (System.nanoTime() - oldRangesBefore)/1000000);
+
+				rangeLocation = preferences.getROOT_PATH() + File.separator + "ranges.txt";
+				rangesArr = IMExtractRunner.readDataRangesOld(rangeLocation);
+				System.out.println("full data ranges + read them time: " + (System.nanoTime() - oldRangesBefore)/1000000);
 			}
-			if (printRanges){
+			
+			if (! ruleMode){
+				if (newRangefileMode){
+					rangesArr = IMExtractRunner.readDataRanges(rangePath, rangesArr);
+				} else {
+					rangesArr = IMExtractRunner.readDataRangesOld(rangePath);
+				}
+			}
+			if (verboseMode){
 				IMExtractRunner.PrintRanges(rangesArr);
 			}
 
@@ -818,10 +925,15 @@ public class CIUGenFrame extends javax.swing.JFrame
 					if (!outputDir.exists()){
 						outputDir.mkdirs();
 					}
-					csvOutName = outputDir + File.separator + rangeFileName + "_#" + rawName + "_raw.csv";						
+					csvOutName = outputDir + File.separator + extr_mode_name +  "_" + rawName + "_fn-" + functionInfo.getFunction() + "_#" + rangeFileName + "_raw.csv";						
 
 					// Call the extractor
 					imextractRunner.extractMobiligramOneFile(singleFunctionVector, csvOutName, ruleMode, rangeFile, extraction_mode);
+				
+					if (verboseMode){
+						extrEnd = System.nanoTime();
+				    	System.out.println("that extr time: " + (extrEnd - extrStartLoop)/1000000);
+					}
 				}
 			}
 		}
@@ -833,11 +945,16 @@ public class CIUGenFrame extends javax.swing.JFrame
 			if (!outputDir.exists()){
 				outputDir.mkdirs();
 			}
-			csvOutName = outputDir + File.separator + rangeFileName + "_#" + rawName + "_raw.csv";						
+			csvOutName = outputDir + File.separator + extr_mode_name +  "_" + rawName  +  "_#" + rangeFileName  + "_raw.csv";						
 			
 			//Once all function info has been gathered, send it to IMExtract
 			imextractRunner.extractMobiligramOneFile(allFunctions,csvOutName, ruleMode, rangeFile, extraction_mode);
+			if (verboseMode){
+				extrEnd = System.nanoTime();
+		    	System.out.println("that extr time: " + (extrEnd - extrStart)/1000000);
+			}
 		}
+		
 	}
 
 
@@ -1222,6 +1339,7 @@ public class CIUGenFrame extends javax.swing.JFrame
         /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
          * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
          */
+    	startTime = System.nanoTime();
         try {
             for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
                 if ("Nimbus".equals(info.getName())) {

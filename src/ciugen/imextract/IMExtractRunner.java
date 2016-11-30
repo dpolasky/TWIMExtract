@@ -186,22 +186,111 @@ public class IMExtractRunner
             cmdarray.append("\"" + getRoot() + File.separator + "ranges.txt\" ");
             cmdarray.append("-t ");
             cmdarray.append("mobilicube");
+            
             runIMSExtract(cmdarray.toString());
-            initialiseBinaryMaps();
+//            initialiseBinaryMaps();
             
         } catch (IOException ex) {
             Logger.getLogger(IMExtractRunner.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
-  
     /**
-     * EDIT: new
+     * Read input range file and return an array of the ranges specified.
+     * NOTE: max # of bins for each dimension is automatically determined by IMExtractRunner, 
+     * and will be set to 1 for the ranges array.
+     * RANGE FILE FORMAT:
+     * 	MZ_start_(m/z): xxx
+		MZ_end_(m/z): xxxx
+		RT_start_(minutes): xx
+		RT_end_(minutes): xx
+		DT_start_(bins): xx
+		DT_end_(bins): xxx
+     */
+    public static double[] readDataRanges(String rangesName, double[] rangesArr){
+    	// Data reader
+        BufferedReader reader = null;
+        String line = null;
+        
+        // Read the file
+        try {
+        	File rangesTxt = new File(rangesName);
+        	reader = new BufferedReader(new FileReader(rangesTxt));
+        	while((line = reader.readLine()) != null){
+        		String[] splits = line.split(":");
+        		String inputName = splits[0];
+        		double inputValue = Double.parseDouble(splits[1]);
+
+        		String[] nameSplits = inputName.split("_");
+        		switch(nameSplits[0]){
+        		case "MZ":
+        			if (nameSplits[1].toLowerCase().matches("start")){
+        				minMZ = inputValue;
+        				rangesArr[0] = inputValue;
+        			} else if (nameSplits[1].toLowerCase().matches("end")){
+        				maxMZ = inputValue;
+        				rangesArr[1] = inputValue;
+        			} else {
+        				// Invalid input name
+        			}
+        			break;    
+        		case "RT":
+        			if (nameSplits[1].toLowerCase().matches("start")){
+        				minRT = inputValue;
+        				rangesArr[3] = inputValue;
+        			} else if (nameSplits[1].toLowerCase().matches("end")){
+        				maxRT = inputValue;
+        				rangesArr[4] = inputValue;
+        			} else {
+        				// Invalid input name
+        			}
+        			break;
+
+        		case "DT":
+        			if (nameSplits[1].toLowerCase().matches("start")){
+        				minDT = inputValue;
+        				rangesArr[6] = inputValue;
+        			} else if (nameSplits[1].toLowerCase().matches("end")){
+        				maxDT = inputValue;
+        				rangesArr[7] = inputValue;
+        			} else {
+        				// Invalid input name
+        			}
+        			break;
+
+        		}
+        	}
+
+        }
+        catch (FileNotFoundException ex)
+        {
+            Logger.getLogger(IMExtractRunner.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        catch (IOException iox)
+        {
+            Logger.getLogger(IMExtractRunner.class.getName()).log(Level.SEVERE, null, iox);
+        }
+        finally
+        {
+            try
+            {
+                reader.close();
+            }
+            catch (IOException ex)
+            {
+                Logger.getLogger(IMExtractRunner.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+        return rangesArr;
+    }
+    
+    /**
      * Reads the data ranges from the specified file
+     * FOR OLD RANGE FILE FORMAT (updated 11/30/16)
      * @param rangesFilePath: the path to the ranges text file
      * @return - an array of the ranges specified in the ranges file
      */
-    public static double[] readDataRanges(String rangesName)
+    public static double[] readDataRangesOld(String rangesName)
     {
         // Data reader
         BufferedReader reader = null;
@@ -213,7 +302,7 @@ public class IMExtractRunner
 
         try
         {
-            
+           
             //File rangesTxt = new File(getRoot() + File.separator + rangesName);
         	File rangesTxt = new File(rangesName);
             reader = new BufferedReader(new FileReader(rangesTxt));
@@ -577,9 +666,9 @@ private static void setRoot(String path)
 		// Generate a spectrum for the full data
 		String specPath = "";
 		if (ruleMode){
-	    	specPath = generateMZ(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], selectRegion, ruleFile);
+	    	specPath = generateMZ(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], ruleMode, ruleFile);
 		} else {
-	    	specPath = generateMZ(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], selectRegion, null);
+	    	specPath = generateMZ(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], ruleMode, null);
 		}
 	
 	    double[][] data = getTraceData(specPath, MZ_MODE);
@@ -617,12 +706,12 @@ private static void setRoot(String path)
 		// Generate a spectrum for the full data
 		String specPath = "";
 		if (ruleMode){
-	    	specPath = generateRT(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], selectRegion, ruleFile);
+	    	specPath = generateRT(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], ruleMode, ruleFile);
 		} else {
-	    	specPath = generateRT(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], selectRegion, null);
+	    	specPath = generateRT(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], ruleMode, null);
 		}
 	
-	    double[][] data = getTraceData(specPath, MZ_MODE);
+	    double[][] data = getTraceData(specPath, RT_MODE);
 	    
 	    return data;
 	}
@@ -657,9 +746,9 @@ private static void setRoot(String path)
 		// Generate a spectrum for the full data
 		String specPath = "";
 		if (ruleMode){
-			specPath = generateDT(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], selectRegion, ruleFile);
+			specPath = generateDT(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], ruleMode, ruleFile);
 		} else {
-			specPath = generateDT(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], selectRegion, null);
+			specPath = generateDT(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], ruleMode, null);
 		}
 	
 		double[][] data = getTraceData(specPath, DT_MODE);
@@ -964,6 +1053,7 @@ private static void setRoot(String path)
         nMbb.order(ByteOrder.LITTLE_ENDIAN);
               
         /* Get the actual number of bins used */
+        // NOTE - this overwrites any bins passed in range files, so I'm removing bin arguments from ranges
         int nMZBins = 0;
         int nRTBins = 0;
         int nDTBins = 0;

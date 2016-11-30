@@ -27,9 +27,8 @@ public class Preferences
   private String batchDir;
   private String ruleDir;
   
- // private final String CIUGEN_HOME = System.getenv("CIUGEN_HOME");
-  private final String CIUGEN_HOME = "C:\\CIUGen";	//edited
-
+  private final String CIUGEN_HOME = "C:\\CIUGen";	
+  
   private String LIB_PATH;
   private String BIN_PATH;
   private String CONFIG_PATH;
@@ -43,6 +42,8 @@ public class Preferences
   private static final String BATCH_TITLE = "Batch_Directory";
   private static final String RULE_TITLE = "Rule_Directory";
   
+  public boolean haveConfig;
+  
   private Preferences()
   {
     this.BIN_PATH = (this.CIUGEN_HOME + "\\bin");
@@ -55,15 +56,16 @@ public class Preferences
     this.HELP_PATH = (this.CIUGEN_HOME + "\\TWIMExtract_help.txt");
     this.EXAMPLE_PATH = (this.CIUGEN_HOME + "\\TWIMExtract_RangeExample.txt");
     
-    // Read any existing configuration preferences
-    readConfig(txtconfig);
+    // Read any existing configuration preferences. Store whether or not a config file was found for later reference
+    haveConfig = readConfig(txtconfig);
   }
  
   /**
    * Reads in the information from the config file, to be called in the constructor. Handles a lack of 
-   * config file by initializing to default values.
+   * config file by initializing to default values. Returns True if config file exists, false if no config
+   * file could be found or if an error occurred. 
    */
-  private void readConfig(File configFile){
+  private boolean readConfig(File configFile){
 	  // Read in information from existing config file if found, otherwise initialize to defaults
 	  try {
 		  BufferedReader reader = new BufferedReader(new FileReader(configFile));
@@ -98,6 +100,8 @@ public class Preferences
 			  ruleDir = m_strWorkingDir;
 		  }
 		  reader.close();
+		  return true;
+		  
 	  } catch (FileNotFoundException ex){
 		  System.out.println("No config file found, initializing to defaults");
 		  rawDir = m_strWorkingDir;
@@ -105,6 +109,7 @@ public class Preferences
 		  outDir =  m_strWorkingDir;
 		  batchDir = m_strWorkingDir;
 		  ruleDir = m_strWorkingDir;
+		  return false;
 		  
 	  } catch (IOException ex){
 		  rawDir = m_strWorkingDir;
@@ -113,6 +118,7 @@ public class Preferences
 		  batchDir = m_strWorkingDir;
 		  ruleDir = m_strWorkingDir;
 		  ex.printStackTrace();
+		  return false;
 	  }
   }
 
@@ -147,6 +153,9 @@ public class Preferences
 		
 		writer.flush();
 		writer.close();
+		
+		// Note that we now have a config file available for reading
+		haveConfig = true;
 		
 	} catch (IOException e) {
 		e.printStackTrace();
