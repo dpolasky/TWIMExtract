@@ -410,7 +410,6 @@ public class IMExtractRunner
     			System.out.println();
     		}
     	}
-    	System.out.println("\n" + "Analyzing Raw Files (may take a minute)");
     }
     
 
@@ -458,7 +457,6 @@ private static void setRoot(String path)
 	     * @param extraction_mode = the type of extraction to be done (DT, MZ, RT, or DTMZ)
 	     */
 	    public void extractMobiligramOneFile(ArrayList<DataVectorInfoObject> allFunctions, String outputFilePath, boolean ruleMode, File ruleFile, int extractionMode){
-	    	int HEADER_LENGTH = 1;
 	    	String lineSep = System.getProperty("line.separator");
 	    	
 	    	// Get info types to print from first function (they will be the same for all functions)
@@ -503,119 +501,18 @@ private static void setRoot(String path)
 	//    			counter++;
 	    		}
 	
-	
+	    		// Now, write the output file
 	    		File out = new File(outputFilePath);
 	    		BufferedWriter writer = new BufferedWriter(new FileWriter(out));
-	//    		String[] lines = new String[allMobData.get(0).getMobdata().length + HEADER_LENGTH];		// +2 for the 2 header lines
-	    		ArrayList<String> lines = new ArrayList<String>();
-	    		
-	    		// Headers
-	    		// Loop through the list of data, writing each function's value for this CE to the line
-	    		lines.add("#Range file name:");
-	    		if (infoTypes[USECONE_TYPES]){
-	    			lines.add("$ConeCV:"); 
-	    			HEADER_LENGTH++;
-	    		}
-	    		if (infoTypes[USETRAP_TYPES]){
-	    			lines.add("$TrapCV:"); 
-	    			HEADER_LENGTH++;
-	    		}
-	    		if (infoTypes[USETRANSF_TYPES]){
-	    			lines.add("$TransferCV:");
-	    			HEADER_LENGTH++;
-	    		}
-	    		if (infoTypes[USEWH_TYPES]){
-	    			lines.add("$WaveHt:"); 
-	    			HEADER_LENGTH++;
-	    		}
-	    		if (infoTypes[USEWV_TYPES]){
-	    			lines.add("$WaveVel:"); 
-	    			HEADER_LENGTH++;
-	    		}		
-	    		
-	    		// ADD HEADER INFORMATION AND BIN NUMBERS TO THE LINES
-	    		int lineIndex = 0;
 	
-	    		try {
-	    			// Mobdata is not empty, so write its contents to the array
-	    			for (int i = HEADER_LENGTH; i < allMobData.get(0).getMobdata().length + HEADER_LENGTH; i++){
-	    				lines.add(String.valueOf(allMobData.get(0).getMobdata()[lineIndex][0]));
-	            		lineIndex++;
-	        		}
-	    		} catch (NullPointerException ex){
-	    			for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
-	    				lines.add(String.valueOf(i - HEADER_LENGTH + 1));
-	    				lineIndex++;
-	        		}
+	    		// Get the formatted text output for the appropriate extraction type (RT has to be handled differently from others)
+	    		String[] arraylines = null;
+	    		if (extractionMode == RT_MODE){
+	    			arraylines = rtWriteOutputs(allMobData, infoTypes);
+	    		} else {
+	    			arraylines = dtmzWriteOutputs(allMobData, infoTypes);
 	    		}
 	    		
-	    		// Convert to array from arraylist
-	    		String[] strings = new String[1];
-	    		String[] arraylines = lines.toArray(strings);
-	    		arraylines[0] = lines.get(0);
-	    		
-	    		// FILL IN THE ARRAY WITH ACTUAL DATA
-	    		for (MobData data : allMobData){
-	    			int lineCounter = 0;
-	    			arraylines[0] = arraylines[0] + "," + data.getRangeName();
-	    			lineCounter++;
-	        		if (infoTypes[USECONE_TYPES]){
-	        			arraylines[lineCounter] = arraylines[lineCounter] + "," + data.getConeCV();
-	        			lineCounter++;
-	        		}
-	        		if (infoTypes[USETRAP_TYPES]){
-	        			arraylines[lineCounter] = arraylines[lineCounter] + "," + data.getTrapCV();
-	        			lineCounter++;
-	        		}
-	        		if (infoTypes[USETRANSF_TYPES]){
-	        			arraylines[lineCounter] = arraylines[lineCounter] + "," + data.getTransferCV();
-	        			lineCounter++;
-	        		}
-	        		if (infoTypes[USEWH_TYPES]){
-	        			arraylines[lineCounter] = arraylines[lineCounter] + "," + data.getWaveHeight();
-	        			lineCounter++;
-	        		}
-	        		if (infoTypes[USEWV_TYPES]){
-	        			arraylines[lineCounter] = arraylines[lineCounter] + "," + data.getWaveVelocity();
-	        			lineCounter++;
-	        		}
-	
-	    			// Added catch for null mobdata if there's no (or all 0's) data in the file
-	    			try{
-	    				lineIndex = 0;
-	    				// Catch empty mobdata
-	    				if (data.getMobdata().length == 0){
-	    					for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
-	    							arraylines[i] = arraylines[i] + "," + String.valueOf(0);
-	//            					lineIndex++;
-	        				}
-	    				}
-	    				for (int i = HEADER_LENGTH; i < data.getMobdata().length + HEADER_LENGTH; i++){
-	    						arraylines[i] = arraylines[i] + "," + String.valueOf(data.getMobdata()[lineIndex][1]);
-	        					lineIndex++;
-	    				}
-	    				
-	    			} 
-	    			catch (NullPointerException ex){
-	    				// Warn the user that their data is no good
-	    				System.out.println("WARNING: " +
-	    						"No data in " + data.getRawFileName() + ", collision energy " + data.getCollisionEnergy());
-	
-	    				for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
-	    					arraylines[i] = arraylines[i] + "," + String.valueOf(0);
-	    				}
-	    		
-	    			} catch (ArrayIndexOutOfBoundsException ex){
-	    				System.out.println("\n" + "WARNING: " +
-	    						"(Array index error) " + data.getRawFileName() + ", range File " + data.getRangeName()
-	    						+ "\n" + "Writing all 0's for this range");
-	    				for (int i = HEADER_LENGTH; i < allMobData.get(0).getMobdata().length + HEADER_LENGTH; i++){	
-	    					arraylines[i] = arraylines[i] + "," + "0";
-	    					lineIndex++;
-	    				}
-	    			}
-	    			
-	    		}
 	    		// Now, write all the lines to file
 	    		for (String line : arraylines){
 	    			writer.write(line);
@@ -636,6 +533,262 @@ private static void setRoot(String path)
 	
 	    }
 
+	    /**
+	     * Helper method to format text output for MS or DT extractions. Assumes that each function 
+	     * (if using combined outputs) has the same bin names (e.g. DT bin 1, 2, 3, ...) and writes
+	     * one column per function using the same initial set of bins. Returns String[] that can
+	     * be directly written to the output file. 
+	     * @param allMobData
+	     * @param infoTypes
+	     * @return
+	     */
+	    private String[] dtmzWriteOutputs(ArrayList<MobData> allMobData, boolean[] infoTypes){  	
+    		ArrayList<String> lines = new ArrayList<String>();
+    		
+    		// Headers
+    		// Loop through the list of data, writing each function's value for this CE to the line
+	    	int HEADER_LENGTH = 1;
+    		lines.add("#Range file name:");
+    		if (infoTypes[USECONE_TYPES]){
+    			lines.add("$ConeCV:"); 
+    			HEADER_LENGTH++;
+    		}
+    		if (infoTypes[USETRAP_TYPES]){
+    			lines.add("$TrapCV:"); 
+    			HEADER_LENGTH++;
+    		}
+    		if (infoTypes[USETRANSF_TYPES]){
+    			lines.add("$TransferCV:");
+    			HEADER_LENGTH++;
+    		}
+    		if (infoTypes[USEWH_TYPES]){
+    			lines.add("$WaveHt:"); 
+    			HEADER_LENGTH++;
+    		}
+    		if (infoTypes[USEWV_TYPES]){
+    			lines.add("$WaveVel:"); 
+    			HEADER_LENGTH++;
+    		}		
+    		
+    		// ADD HEADER INFORMATION AND BIN NUMBERS TO THE LINES
+    		int lineIndex = 0;
+    		try {
+    			// Mobdata is not empty, so write its contents to the array
+    			for (int i = HEADER_LENGTH; i < allMobData.get(0).getMobdata().length + HEADER_LENGTH; i++){
+    				lines.add(String.valueOf(allMobData.get(0).getMobdata()[lineIndex][0]));
+            		lineIndex++;
+        		}
+    		} catch (NullPointerException ex){
+    			for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
+    				lines.add(String.valueOf(i - HEADER_LENGTH + 1));
+    				lineIndex++;
+        		}
+    		}
+    		
+    		// Convert to array from arraylist
+    		String[] strings = new String[1];
+    		String[] arraylines = lines.toArray(strings);
+    		arraylines[0] = lines.get(0);    	
+	    	
+	    	// FILL IN THE ARRAY WITH ACTUAL DATA, starting with headers
+	    	for (MobData data : allMobData){
+	    		int lineCounter = 0;
+	    		// Print the range name only for the first data column
+	    		if (allMobData.indexOf(data) == 0)
+	    			arraylines[0] = arraylines[0] + "," + data.getRangeName();
+	    		lineCounter++;
+
+	    		// Print desired header information for the specified info types
+	    		if (infoTypes[USECONE_TYPES]){
+	    			arraylines[lineCounter] = arraylines[lineCounter] + "," + data.getConeCV();
+	    			lineCounter++;
+	    		}
+	    		if (infoTypes[USETRAP_TYPES]){
+	    			arraylines[lineCounter] = arraylines[lineCounter] + "," + data.getTrapCV();
+	    			lineCounter++;
+	    		}
+	    		if (infoTypes[USETRANSF_TYPES]){
+	    			arraylines[lineCounter] = arraylines[lineCounter] + "," + data.getTransferCV();
+	    			lineCounter++;
+	    		}
+	    		if (infoTypes[USEWH_TYPES]){
+	    			arraylines[lineCounter] = arraylines[lineCounter] + "," + data.getWaveHeight();
+	    			lineCounter++;
+	    		}
+	    		if (infoTypes[USEWV_TYPES]){
+	    			arraylines[lineCounter] = arraylines[lineCounter] + "," + data.getWaveVelocity();
+	    			lineCounter++;
+	    		}
+
+	    		// WRITE THE ACTUAL DATA
+	    		try{
+		    		// Added catch for null mobdata if there's no (or all 0's) data in the file
+	    			lineIndex = 0;
+	    			// Catch empty mobdata
+	    			if (data.getMobdata().length == 0){
+	    				for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
+	    					arraylines[i] = arraylines[i] + "," + String.valueOf(0);
+	    				}
+	    			}
+	    			for (int i = HEADER_LENGTH; i < data.getMobdata().length + HEADER_LENGTH; i++){
+	    				arraylines[i] = arraylines[i] + "," + String.valueOf(data.getMobdata()[lineIndex][1]);
+	    				lineIndex++;
+	    			}
+
+	    		} 
+	    		catch (NullPointerException ex){
+	    			// Warn the user that their data is no good
+	    			System.out.println("WARNING: " +
+	    					"No data in " + data.getRawFileName() + ", collision energy " + data.getCollisionEnergy());
+
+	    			for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
+	    				arraylines[i] = arraylines[i] + "," + String.valueOf(0);
+	    			}
+
+	    		} catch (ArrayIndexOutOfBoundsException ex){
+	    			System.out.println("\n" + "WARNING: " +
+	    					"(Array index error) " + data.getRawFileName() + ", range File " + data.getRangeName()
+	    					+ "\n" + "Writing all 0's for this range");
+	    			for (int i = HEADER_LENGTH; i < allMobData.get(0).getMobdata().length + HEADER_LENGTH; i++){	
+	    				arraylines[i] = arraylines[i] + "," + "0";
+	    				lineIndex++;
+	    			}
+	    		}
+	    	}
+	    	return arraylines;
+	    }
+	 
+	    /**
+	     * Alternate method for writing output data. Because RT data never repeats the same 'bins'
+	     * (the time keeps increasing by function, unlike DT and MZ, which are the same for all functions),
+	     * the data needs to have each function's 'x' data (raw RT) saved as well as 'y' (intensity).
+	     * Otherwise, code is identical to dtmzWriteOutputs. Duplicated rather than putting if/else 
+	     * at every single line in a single method. 
+	     * @param allMobData
+	     * @param infoTypes
+	     * @return
+	     */
+	    private String[] rtWriteOutputs(ArrayList<MobData> allMobData, boolean[] infoTypes){  	
+    		ArrayList<String> lines = new ArrayList<String>();
+    		
+    		// Headers
+    		// Loop through the list of data, writing each function's value for this CE to the line
+	    	int HEADER_LENGTH = 1;
+    		lines.add("#Range file name:");
+    		if (infoTypes[USECONE_TYPES]){
+    			lines.add("$ConeCV:"); 
+    			HEADER_LENGTH++;
+    		}
+    		if (infoTypes[USETRAP_TYPES]){
+    			lines.add("$TrapCV:"); 
+    			HEADER_LENGTH++;
+    		}
+    		if (infoTypes[USETRANSF_TYPES]){
+    			lines.add("$TransferCV:");
+    			HEADER_LENGTH++;
+    		}
+    		if (infoTypes[USEWH_TYPES]){
+    			lines.add("$WaveHt:"); 
+    			HEADER_LENGTH++;
+    		}
+    		if (infoTypes[USEWV_TYPES]){
+    			lines.add("$WaveVel:"); 
+    			HEADER_LENGTH++;
+    		}		
+    		
+    		// ADD HEADER INFORMATION AND BIN NUMBERS TO THE LINES
+    		int lineIndex = 0;
+    		try {
+    			// Mobdata is not empty, so write its contents to the array
+    			for (int i = HEADER_LENGTH; i < allMobData.get(0).getMobdata().length + HEADER_LENGTH; i++){
+//    				lines.add(String.valueOf(allMobData.get(0).getMobdata()[lineIndex][0]));
+            		lines.add("");
+    				lineIndex++;
+        		}
+    		} catch (NullPointerException ex){
+    			for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
+    				lines.add(String.valueOf(i - HEADER_LENGTH + 1));
+    				lineIndex++;
+        		}
+    		}
+    		
+    		// Convert to array from arraylist
+    		String[] strings = new String[1];
+    		String[] arraylines = lines.toArray(strings);
+    		arraylines[0] = lines.get(0);    	
+
+	    	// FILL IN THE ARRAY WITH ACTUAL DATA, starting with headers
+	    	for (MobData data : allMobData){
+	    		int lineCounter = 0;
+	    		// Print the range name only for the first data column
+	    		if (allMobData.indexOf(data) == 0)
+	    			arraylines[0] = arraylines[0] + "," + data.getRangeName();
+	    		lineCounter++;
+
+	    		// Print desired header information for the specified info types
+	    		if (infoTypes[USECONE_TYPES]){
+	    			arraylines[lineCounter] = arraylines[lineCounter] + ",," + data.getConeCV();
+	    			lineCounter++;
+	    		}
+	    		if (infoTypes[USETRAP_TYPES]){
+	    			arraylines[lineCounter] = arraylines[lineCounter] + ",," + data.getTrapCV();
+	    			lineCounter++;
+	    		}
+	    		if (infoTypes[USETRANSF_TYPES]){
+	    			arraylines[lineCounter] = arraylines[lineCounter] + ",," + data.getTransferCV();
+	    			lineCounter++;
+	    		}
+	    		if (infoTypes[USEWH_TYPES]){
+	    			arraylines[lineCounter] = arraylines[lineCounter] + ",," + data.getWaveHeight();
+	    			lineCounter++;
+	    		}
+	    		if (infoTypes[USEWV_TYPES]){
+	    			arraylines[lineCounter] = arraylines[lineCounter] + ",," + data.getWaveVelocity();
+	    			lineCounter++;
+	    		}
+
+	    		// WRITE THE ACTUAL DATA
+	    		try{
+		    		// Added catch for null mobdata if there's no (or all 0's) data in the file
+	    			lineIndex = 0;
+	    			if (data.getMobdata().length == 0){
+	    				// mobdata is empty! Write all 0's
+	    				for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
+	    					arraylines[i] = arraylines[i] + "," + String.valueOf(0);
+	    				}
+	    			}
+	    			// Otherwise, mobdata exists so write its contents to the lines (BOTH raw RT AND intensity)
+	    			for (int i = HEADER_LENGTH; i < data.getMobdata().length + HEADER_LENGTH - 1; i++){
+	    				int test = i;
+	    				int newtest = test;
+	    				arraylines[i] = arraylines[i] + "," + String.valueOf(data.getMobdata()[lineIndex][0]) + "," + String.valueOf(data.getMobdata()[lineIndex][1]);
+	    				lineIndex++;
+	    			}
+
+	    		} 
+	    		catch (NullPointerException ex){
+	    			// Warn the user that their data is no good
+	    			System.out.println("WARNING: " +
+	    					"No data in " + data.getRawFileName() + ", collision energy " + data.getCollisionEnergy());
+
+	    			for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
+	    				arraylines[i] = arraylines[i] + "," + String.valueOf(0);
+	    			}
+
+	    		} catch (ArrayIndexOutOfBoundsException ex){
+	    			System.out.println("\n" + "WARNING: " +
+	    					"(Array index error) " + data.getRawFileName() + ", range File " + data.getRangeName());
+//	    			for (int i = HEADER_LENGTH; i < allMobData.get(0).getMobdata().length + HEADER_LENGTH; i++){	
+//	    				arraylines[i] = arraylines[i] + "," + "0";
+//	    				lineIndex++;
+//	    			}
+	    		}
+	    	}
+	    	return arraylines;
+	    }
+	    
+	    
+	    
 	/**
 	 * Rule file spectrum extract method. Passes the extraction argument string to generateMZ. 
 	 * @param rawPath
