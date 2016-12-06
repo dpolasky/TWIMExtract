@@ -46,26 +46,6 @@ public class DataVectorInfoObject {
 		this.setInfoTypes(myInfoTypes);
 	}
 	
-	// Deprecated - partial constructors
-//	public DataVectorInfoObject(String myRawPath, String myName, int myFn, boolean mySelected, double myCE, double[] myRangeVals, String myRangeName){
-//		this.setCollisionEnergy(myCE);
-//		this.setFunction(myFn);
-//		this.setRangeVals(myRangeVals);
-//		this.setRawDataPath(myRawPath);
-//		this.setSelected(mySelected);
-//		this.setRangeName(myRangeName);
-//		this.setRawDataName(myName);
-//	}
-//
-//	// Version with no collision energy
-//	public DataVectorInfoObject(String myRawPath, String myName, int myFn, boolean mySelected, double[] myRangeVals, String myRangeName){
-//		this.setFunction(myFn);
-//		this.setRangeVals(myRangeVals);
-//		this.setRawDataPath(myRawPath);
-//		this.setSelected(mySelected);
-//		this.setRangeName(myRangeName);
-//		this.setRawDataName(myName);
-//	}
 	public boolean isSelected() {
 		return selected;
 	}

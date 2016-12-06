@@ -35,6 +35,7 @@ public class Preferences
   private String ROOT_PATH;
   private String HELP_PATH;
   private String EXAMPLE_PATH;
+  private String RULE_EX_PATH;
   
   private static final String RAW_TITLE = "Raw_Directory";
   private static final String RANGE_TITLE = "Range_Directory";
@@ -54,7 +55,8 @@ public class Preferences
     this.ROOT_PATH = (this.CIUGEN_HOME + "\\root");
     this.txtconfig = new File (this.CONFIG_PATH + "\\config.txt");
     this.HELP_PATH = (this.CIUGEN_HOME + "\\TWIMExtract_help.txt");
-    this.EXAMPLE_PATH = (this.CIUGEN_HOME + "\\TWIMExtract_RangeExample.txt");
+    this.EXAMPLE_PATH = (this.CIUGEN_HOME + "\\_EXAMPLES\\Range_and_Rule_Examples\\RangeExample.txt");
+    this.setRULE_EX_PATH((this.CIUGEN_HOME + "\\_EXAMPLES\\Range_and_Rule_Examples\\How to generate Rule Files (Driftscope).txt"));
     
     // Read any existing configuration preferences. Store whether or not a config file was found for later reference
     haveConfig = readConfig(txtconfig);
@@ -91,13 +93,13 @@ public class Preferences
 		  if (rawDir == null){
 			  rawDir = m_strWorkingDir;
 		  } if (rangeDir == null){
-			  rangeDir =  m_strWorkingDir;
+			  rangeDir =  this.CIUGEN_HOME + "\\_EXAMPLES\\Range_and_Rule_Files";
 		  } if (outDir == null){
 			  outDir =  m_strWorkingDir;
 		  } if (batchDir == null){
-			  batchDir = m_strWorkingDir;
+			  batchDir = this.CIUGEN_HOME + "\\_EXAMPLES\\Batches";
 		  } if (ruleDir == null){
-			  ruleDir = m_strWorkingDir;
+			  ruleDir = this.CIUGEN_HOME + "\\_EXAMPLES\\Range_and_Rule_Files";
 		  }
 		  reader.close();
 		  return true;
@@ -305,5 +307,13 @@ public String getEXAMPLE_PATH() {
 
 public void setEXAMPLE_PATH(String eXAMPLE_PATH) {
 	EXAMPLE_PATH = eXAMPLE_PATH;
+}
+
+public String getRULE_EX_PATH() {
+	return RULE_EX_PATH;
+}
+
+public void setRULE_EX_PATH(String rULE_EX_PATH) {
+	RULE_EX_PATH = rULE_EX_PATH;
 }
 }

@@ -19,12 +19,12 @@ import java.util.logging.Logger;
 /**
  * This object is a utility class for making calls to the imextract.exe in order to extract
  * specific ranges of HDMS data
+ * @author dpolasky
  * @author UKKNEKM
- * v3.3
  */
-public class IMExtractRunner
-{
-    // THe single instance of this object
+public class IMExtractRunner {
+	
+    // The single instance of this object
     private static IMExtractRunner instance;
     
     // Single instance of the preferences
@@ -33,122 +33,14 @@ public class IMExtractRunner
     // This is the root folder for the current analysis
     private static File root;
 
-    // Line separator
-    private static String lineSep = System.getProperty("line.separator");
-
-    // Flags indicating the position of data values in an array
-    public static final int START_MZ = 0;
-    public static final int STOP_MZ = 1;
-    public static final int MZ_BINS = 2;
-    public static final int START_RT = 3;
-    public static final int STOP_RT = 4;
-    public static final int RT_BINS = 5;
-    public static final int START_DT = 6;
-    public static final int STOP_DT = 7;
-    public static final int DT_BINS = 8;
-    
-    // Trace data types
-    public static int RT_MODE = 0;
-    public static int DT_MODE = 1;
-    public static int MZ_MODE = 2;
-    public static int DTMZ_MODE = 3;
-    
-    // Range values 
-    private static double minMZ = 0.0;
-    private static double maxMZ = 0.0;
-    private static double mzBins = 0.0;
-    private static double minRT = 0.0;
-    private static double maxRT = 0.0;
-    private static double rtBins = 0.0;
-    private static double minDT = 0.0;
-    private static double maxDT = 0.0;
-    private static double dtBins = 0.0;
-    
-    private static double zHigh = Double.MIN_VALUE;
-    private static double zLow = Double.MAX_VALUE;
-    
-    private static File exeFile;
-    
-    public static int BPI = 1;
-    public static int TIC = 0;
-
-    private static final int USECONE_TYPES = 0;
-    private static final int USETRAP_TYPES = 1;
-    private static final int USETRANSF_TYPES = 2;
-    private static final int USEWH_TYPES = 3;
-    private static final int USEWV_TYPES = 4;    
-    
-    /**
-     * @return the zHigh
-     */
-    public static double getzHigh() {
-        return zHigh;
-    }
-
-    /**
-     * @return the zLow
-     */
-    public static double getzLow() {
-        return zLow;
-    }
-
     /**
      * Private constructor
      */
     private IMExtractRunner()
     {
-        exeFile = new File(preferences.getLIB_PATH() + File.separator + "imextract.exe");
-        setRoot( preferences.getCIUGEN_HOME() + "\\root");
+    	exeFile = new File(preferences.getLIB_PATH() + File.separator + "imextract.exe");
+    	setRoot( preferences.getCIUGEN_HOME() + "\\root");
     }
-
-    /**
-	     * Initializes the binary maps for the data model
-	     */
-	    private static void initialiseBinaryMaps()throws FileNotFoundException, IOException
-	    {
-	        double[] dtMap = new double[200];
-	        
-	        /* Generate the file path to our summed and binned data */
-	        String strPath = root.getPath();
-	        
-	        String dtBinPath = strPath + File.separator + "_dt.bin";
-	        
-	        /* Open the dt binary file as channel */
-	        File binFileDT = new File( dtBinPath );
-	        binFileDT.deleteOnExit();
-	        if( !binFileDT.exists() )
-	        {
-	            return;
-	        }
-	        RandomAccessFile rafFileDT = new RandomAccessFile( binFileDT, "r" );
-	        FileChannel channelDT = rafFileDT.getChannel();
-	        
-	        /* The memory mapped buffer for drift time */
-	        MappedByteBuffer nMbbDT = null;
-	        
-	        /* Read number of mass channels */
-	        if( nMbbDT != null )
-	        {
-	            nMbbDT.clear();
-	        }
-	        
-	        nMbbDT = channelDT.map( FileChannel.MapMode.READ_ONLY, 0L, binFileDT.length() );
-	        nMbbDT = nMbbDT.load();
-	        nMbbDT.order(ByteOrder.LITTLE_ENDIAN);
-	        
-	        float fDTTime = 0.0f;
-	        for( int i=0; i<dtMap.length; i++ )
-	        {
-	            nMbbDT.getInt();
-	            fDTTime = nMbbDT.getFloat();
-	            dtMap[ i ] = NumberUtils.roundNumber(fDTTime, 2);
-	        }
-	        
-	//        convertor.setDtMap(dtMap);
-	        
-	        channelDT.close();
-	        rafFileDT.close();
-	    }
 
 	/**
      * Returns the single instance of this object
@@ -306,25 +198,19 @@ public class IMExtractRunner
             //File rangesTxt = new File(getRoot() + File.separator + rangesName);
         	File rangesTxt = new File(rangesName);
             reader = new BufferedReader(new FileReader(rangesTxt));
-            while((line = reader.readLine()) != null)
-            {
+            while((line = reader.readLine()) != null) {
+            	
                 String[] splits = line.split(" ");
-                for( String split : splits )
-                {
+                for( String split : splits ){
                     double d = Double.parseDouble(split);
                     //rangesArr[valueCounter] = d;
-                    switch( valueCounter )
-                    {
-                    	// EDIT - made it so that non-integer ranges can be passed for min and max m/z and RT.
-                    	// Not sure why they were rounded in the first place. Should probably also actually make an integer check for DT stuff too.
+                    switch( valueCounter ){
                         case START_MZ:
-//                            minMZ = Math.floor(d);
                         	minMZ = d;
                         	rangesArr[valueCounter] = minMZ;
                             break;
                             
                         case STOP_MZ:
-//                            maxMZ = Math.ceil(d);
                         	maxMZ = d;
                         	rangesArr[valueCounter] = maxMZ;
                             break;
@@ -335,13 +221,11 @@ public class IMExtractRunner
                             break;
                             
                         case START_RT:
-//                            minRT = Math.floor(d);
                             minRT = d;
                             rangesArr[valueCounter] = minRT;
                             break;
                             
                         case STOP_RT:
-//                            maxRT = Math.ceil(d);
                             maxRT = d;
                             rangesArr[valueCounter] = maxRT;
                             break;
@@ -389,12 +273,7 @@ public class IMExtractRunner
             {
                 Logger.getLogger(IMExtractRunner.class.getName()).log(Level.SEVERE, null, ex);
             }
-        }
-        //EDIT - print the ranges used to the terminal
-        for (int i=0; i<rangesArr.length;i++){
-        	//System.out.print(rangesArr[i]+" ");
-        }
-        //System.out.println();
+        }      
         return rangesArr;
     }
  
@@ -412,382 +291,370 @@ public class IMExtractRunner
     	}
     }
     
-
     /**
 	 * Returns an array of the last data ranges run
 	 * @return 
 	 */
-	public double[] getLastRanges()
-	{
+	public double[] getLastRanges() {
 		double[] ranges = new double[]{minMZ, maxMZ, mzBins, minRT, maxRT, rtBins, minDT, maxDT, dtBins};
-	
 		return ranges;
 	}
 
-
-/**
+	/**
 	 * Gets the root directory
 	 * @return
 	 */
-	private static File getRoot()
-	{
-	    return root;
+	private static File getRoot(){
+		return root;
 	}
 
 	/**
- * Sets the root directory
- * @param path 
- */
-private static void setRoot(String path)
-{
-    //System.out.println("Setting root: " + path);
-    root = new File(path);
-    root.mkdirs();
-}
+	 * Sets the root directory
+	 * @param path 
+	 */
+	private static void setRoot(String path){
+		//System.out.println("Setting root: " + path);
+		root = new File(path);
+		root.mkdirs();
+	}
 
 	/**
-	     * Updated extract Mobiligram method that takes a list of functions to analyze (length 1 for single
-	     * file analyses), calls the appropriate helper methods based on the extraction mode, then combines
-	     * the returned (extracted) data for writing to an output file specified by the output path. 
-	     * Does NOT use collision energy
-	     * @param allFunctions = the list of functions (data) to be extracted with all their associated information in DataVectorInfoObject format
-	     * @param outputFilePath = where to write the output file
-	     * @param ruleMode = whether to use range files or rule files for extracting
-	     * @param ruleFile = the rule OR range file being used for the extraction
-	     * @param extraction_mode = the type of extraction to be done (DT, MZ, RT, or DTMZ)
-	     */
-	    public void extractMobiligramOneFile(ArrayList<DataVectorInfoObject> allFunctions, String outputFilePath, boolean ruleMode, File ruleFile, int extractionMode){
-	    	String lineSep = System.getProperty("line.separator");
-	    	
-	    	// Get info types to print from first function (they will be the same for all functions)
-	    	boolean[] infoTypes = allFunctions.get(0).getInfoTypes();
-	    	try {
-	    		// Collect mobData for all functions in the list
-	    		ArrayList<MobData> allMobData = new ArrayList<MobData>();
-	
-	    		for (DataVectorInfoObject function : allFunctions){
-	    			String rawDataFilePath = function.getRawDataPath();
-	    			String rawName = function.getRawDataName();
-	
-	    			int functionNum = function.getFunction();
-	    			double conecv = function.getConeCV();
-	    			double trapcv = function.getCollisionEnergy();
-	    			double transfcv = function.getTransfCV();
-	    			double wh = function.getWaveHeight();
-	    			double wv = function.getWaveVel();
-	    			double[] rangeVals = function.getRangeVals();
-	    			String rangeName = function.getRangeName();
-	    			
-	    			double[][] data = null;
-	    			if (extractionMode == DT_MODE){
-	        			data = generateReplicateMobiligram(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, ruleFile, ruleMode);
-	
-	    			} else if (extractionMode == MZ_MODE){
-	    				data = generateReplicateSpectrum(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, ruleFile, ruleMode);
-	
-	    			} else if (extractionMode == RT_MODE){
-	    				data = generateReplicateChromatogram(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, ruleFile, ruleMode);
-	
-	    			} else if (extractionMode == DTMZ_MODE){
-	//    				data = generateReplicateDTMZ(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, ruleFile, ruleMode);
-	    			}
-	    			
-	    			if (data == null){
-	    				System.out.println("Error during extraction! Check your raw data - it might be empty or corrupted");
-	    			}
-	    			MobData currentMob = new MobData(data,rawName,rangeName,conecv,trapcv,transfcv,wh,wv);
-	    			allMobData.add(currentMob);
-	//    			System.out.println("\n" + "Completed Analysis " + counter + " of " + allFunctions.size() + "\n");
-	//    			counter++;
-	    		}
-	
-	    		// Now, write the output file
-	    		File out = new File(outputFilePath);
-	    		BufferedWriter writer = new BufferedWriter(new FileWriter(out));
-	
-	    		// Get the formatted text output for the appropriate extraction type (RT has to be handled differently from others)
-	    		String[] arraylines = null;
-	    		if (extractionMode == RT_MODE){
-	    			arraylines = rtWriteOutputs(allMobData, infoTypes);
-	    		} else {
-	    			arraylines = dtmzWriteOutputs(allMobData, infoTypes);
-	    		}
-	    		
-	    		// Now, write all the lines to file
-	    		for (String line : arraylines){
-	    			writer.write(line);
-	    			writer.write(lineSep);
-	    		}
-	    		writer.flush();
-				writer.close();
-	    	}
-	    	
-	    	catch (FileNotFoundException ex) 
-	    	{
-	    		ex.printStackTrace();
-	    	} 
-	    	catch (IOException ex) 
-	    	{
-	    		ex.printStackTrace();
-	    	}
-	
-	    }
+	 * Updated extract Mobiligram method that takes a list of functions to analyze (length 1 for single
+	 * file analyses), calls the appropriate helper methods based on the extraction mode, then combines
+	 * the returned (extracted) data for writing to an output file specified by the output path. 
+	 * @param allFunctions = the list of functions (data) to be extracted with all their associated information in DataVectorInfoObject format
+	 * @param outputFilePath = where to write the output file
+	 * @param ruleMode = whether to use range files or rule files for extracting
+	 * @param ruleFile = the rule OR range file being used for the extraction
+	 * @param extraction_mode = the type of extraction to be done (DT, MZ, RT, or DTMZ)
+	 */
+	public void extractMobiligramOneFile(ArrayList<DataVectorInfoObject> allFunctions, String outputFilePath, boolean ruleMode, File ruleFile, int extractionMode){
+		String lineSep = System.getProperty("line.separator");
 
-	    /**
-	     * Helper method to format text output for MS or DT extractions. Assumes that each function 
-	     * (if using combined outputs) has the same bin names (e.g. DT bin 1, 2, 3, ...) and writes
-	     * one column per function using the same initial set of bins. Returns String[] that can
-	     * be directly written to the output file. 
-	     * @param allMobData
-	     * @param infoTypes
-	     * @return
-	     */
-	    private String[] dtmzWriteOutputs(ArrayList<MobData> allMobData, boolean[] infoTypes){  	
-    		ArrayList<String> lines = new ArrayList<String>();
-    		
-    		// Headers
-    		// Loop through the list of data, writing each function's value for this CE to the line
-	    	int HEADER_LENGTH = 1;
-    		lines.add("#Range file name:");
-    		if (infoTypes[USECONE_TYPES]){
-    			lines.add("$ConeCV:"); 
-    			HEADER_LENGTH++;
-    		}
-    		if (infoTypes[USETRAP_TYPES]){
-    			lines.add("$TrapCV:"); 
-    			HEADER_LENGTH++;
-    		}
-    		if (infoTypes[USETRANSF_TYPES]){
-    			lines.add("$TransferCV:");
-    			HEADER_LENGTH++;
-    		}
-    		if (infoTypes[USEWH_TYPES]){
-    			lines.add("$WaveHt:"); 
-    			HEADER_LENGTH++;
-    		}
-    		if (infoTypes[USEWV_TYPES]){
-    			lines.add("$WaveVel:"); 
-    			HEADER_LENGTH++;
-    		}		
-    		
-    		// ADD HEADER INFORMATION AND BIN NUMBERS TO THE LINES
-    		int lineIndex = 0;
-    		try {
-    			// Mobdata is not empty, so write its contents to the array
-    			for (int i = HEADER_LENGTH; i < allMobData.get(0).getMobdata().length + HEADER_LENGTH; i++){
-    				lines.add(String.valueOf(allMobData.get(0).getMobdata()[lineIndex][0]));
-            		lineIndex++;
-        		}
-    		} catch (NullPointerException ex){
-    			for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
-    				lines.add(String.valueOf(i - HEADER_LENGTH + 1));
-    				lineIndex++;
-        		}
-    		}
-    		
-    		// Convert to array from arraylist
-    		String[] strings = new String[1];
-    		String[] arraylines = lines.toArray(strings);
-    		arraylines[0] = lines.get(0);    	
-	    	
-	    	// FILL IN THE ARRAY WITH ACTUAL DATA, starting with headers
-	    	for (MobData data : allMobData){
-	    		int lineCounter = 0;
-	    		// Print the range name only for the first data column
-	    		if (allMobData.indexOf(data) == 0)
-	    			arraylines[0] = arraylines[0] + "," + data.getRangeName();
-	    		lineCounter++;
+		// Get info types to print from first function (they will be the same for all functions)
+		boolean[] infoTypes = allFunctions.get(0).getInfoTypes();
+		try {
+			// Collect mobData for all functions in the list
+			ArrayList<MobData> allMobData = new ArrayList<MobData>();
 
-	    		// Print desired header information for the specified info types
-	    		if (infoTypes[USECONE_TYPES]){
-	    			arraylines[lineCounter] = arraylines[lineCounter] + "," + data.getConeCV();
-	    			lineCounter++;
-	    		}
-	    		if (infoTypes[USETRAP_TYPES]){
-	    			arraylines[lineCounter] = arraylines[lineCounter] + "," + data.getTrapCV();
-	    			lineCounter++;
-	    		}
-	    		if (infoTypes[USETRANSF_TYPES]){
-	    			arraylines[lineCounter] = arraylines[lineCounter] + "," + data.getTransferCV();
-	    			lineCounter++;
-	    		}
-	    		if (infoTypes[USEWH_TYPES]){
-	    			arraylines[lineCounter] = arraylines[lineCounter] + "," + data.getWaveHeight();
-	    			lineCounter++;
-	    		}
-	    		if (infoTypes[USEWV_TYPES]){
-	    			arraylines[lineCounter] = arraylines[lineCounter] + "," + data.getWaveVelocity();
-	    			lineCounter++;
-	    		}
+			for (DataVectorInfoObject function : allFunctions){
+				String rawDataFilePath = function.getRawDataPath();
+				String rawName = function.getRawDataName();
 
-	    		// WRITE THE ACTUAL DATA
-	    		try{
-		    		// Added catch for null mobdata if there's no (or all 0's) data in the file
-	    			lineIndex = 0;
-	    			// Catch empty mobdata
-	    			if (data.getMobdata().length == 0){
-	    				for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
-	    					arraylines[i] = arraylines[i] + "," + String.valueOf(0);
-	    				}
-	    			}
-	    			for (int i = HEADER_LENGTH; i < data.getMobdata().length + HEADER_LENGTH; i++){
-	    				arraylines[i] = arraylines[i] + "," + String.valueOf(data.getMobdata()[lineIndex][1]);
-	    				lineIndex++;
-	    			}
+				int functionNum = function.getFunction();
+				double conecv = function.getConeCV();
+				double trapcv = function.getCollisionEnergy();
+				double transfcv = function.getTransfCV();
+				double wh = function.getWaveHeight();
+				double wv = function.getWaveVel();
+				double[] rangeVals = function.getRangeVals();
+				String rangeName = function.getRangeName();
 
-	    		} 
-	    		catch (NullPointerException ex){
-	    			// Warn the user that their data is no good
-	    			System.out.println("WARNING: " +
-	    					"No data in " + data.getRawFileName() + ", collision energy " + data.getCollisionEnergy());
+				double[][] data = null;
+				if (extractionMode == DT_MODE){
+					data = generateReplicateMobiligram(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, ruleFile, ruleMode);
 
-	    			for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
-	    				arraylines[i] = arraylines[i] + "," + String.valueOf(0);
-	    			}
+				} else if (extractionMode == MZ_MODE){
+					data = generateReplicateSpectrum(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, ruleFile, ruleMode);
 
-	    		} catch (ArrayIndexOutOfBoundsException ex){
-	    			System.out.println("\n" + "WARNING: " +
-	    					"(Array index error) " + data.getRawFileName() + ", range File " + data.getRangeName()
-	    					+ "\n" + "Writing all 0's for this range");
-	    			for (int i = HEADER_LENGTH; i < allMobData.get(0).getMobdata().length + HEADER_LENGTH; i++){	
-	    				arraylines[i] = arraylines[i] + "," + "0";
-	    				lineIndex++;
-	    			}
-	    		}
-	    	}
-	    	return arraylines;
-	    }
-	 
-	    /**
-	     * Alternate method for writing output data. Because RT data never repeats the same 'bins'
-	     * (the time keeps increasing by function, unlike DT and MZ, which are the same for all functions),
-	     * the data needs to have each function's 'x' data (raw RT) saved as well as 'y' (intensity).
-	     * Otherwise, code is identical to dtmzWriteOutputs. Duplicated rather than putting if/else 
-	     * at every single line in a single method. 
-	     * @param allMobData
-	     * @param infoTypes
-	     * @return
-	     */
-	    private String[] rtWriteOutputs(ArrayList<MobData> allMobData, boolean[] infoTypes){  	
-    		ArrayList<String> lines = new ArrayList<String>();
-    		
-    		// Headers
-    		// Loop through the list of data, writing each function's value for this CE to the line
-	    	int HEADER_LENGTH = 1;
-    		lines.add("#Range file name:");
-    		if (infoTypes[USECONE_TYPES]){
-    			lines.add("$ConeCV:"); 
-    			HEADER_LENGTH++;
-    		}
-    		if (infoTypes[USETRAP_TYPES]){
-    			lines.add("$TrapCV:"); 
-    			HEADER_LENGTH++;
-    		}
-    		if (infoTypes[USETRANSF_TYPES]){
-    			lines.add("$TransferCV:");
-    			HEADER_LENGTH++;
-    		}
-    		if (infoTypes[USEWH_TYPES]){
-    			lines.add("$WaveHt:"); 
-    			HEADER_LENGTH++;
-    		}
-    		if (infoTypes[USEWV_TYPES]){
-    			lines.add("$WaveVel:"); 
-    			HEADER_LENGTH++;
-    		}		
-    		
-    		// ADD HEADER INFORMATION AND BIN NUMBERS TO THE LINES
-    		int lineIndex = 0;
-    		try {
-    			// Mobdata is not empty, so write its contents to the array
-    			for (int i = HEADER_LENGTH; i < allMobData.get(0).getMobdata().length + HEADER_LENGTH; i++){
-//    				lines.add(String.valueOf(allMobData.get(0).getMobdata()[lineIndex][0]));
-            		lines.add("");
-    				lineIndex++;
-        		}
-    		} catch (NullPointerException ex){
-    			for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
-    				lines.add(String.valueOf(i - HEADER_LENGTH + 1));
-    				lineIndex++;
-        		}
-    		}
-    		
-    		// Convert to array from arraylist
-    		String[] strings = new String[1];
-    		String[] arraylines = lines.toArray(strings);
-    		arraylines[0] = lines.get(0);    	
+				} else if (extractionMode == RT_MODE){
+					data = generateReplicateChromatogram(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, ruleFile, ruleMode);
 
-	    	// FILL IN THE ARRAY WITH ACTUAL DATA, starting with headers
-	    	for (MobData data : allMobData){
-	    		int lineCounter = 0;
-	    		// Print the range name only for the first data column
-	    		if (allMobData.indexOf(data) == 0)
-	    			arraylines[0] = arraylines[0] + "," + data.getRangeName();
-	    		lineCounter++;
+				} else if (extractionMode == DTMZ_MODE){
+					//    				data = generateReplicateDTMZ(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, ruleFile, ruleMode);
+				}
 
-	    		// Print desired header information for the specified info types
-	    		if (infoTypes[USECONE_TYPES]){
-	    			arraylines[lineCounter] = arraylines[lineCounter] + ",," + data.getConeCV();
-	    			lineCounter++;
-	    		}
-	    		if (infoTypes[USETRAP_TYPES]){
-	    			arraylines[lineCounter] = arraylines[lineCounter] + ",," + data.getTrapCV();
-	    			lineCounter++;
-	    		}
-	    		if (infoTypes[USETRANSF_TYPES]){
-	    			arraylines[lineCounter] = arraylines[lineCounter] + ",," + data.getTransferCV();
-	    			lineCounter++;
-	    		}
-	    		if (infoTypes[USEWH_TYPES]){
-	    			arraylines[lineCounter] = arraylines[lineCounter] + ",," + data.getWaveHeight();
-	    			lineCounter++;
-	    		}
-	    		if (infoTypes[USEWV_TYPES]){
-	    			arraylines[lineCounter] = arraylines[lineCounter] + ",," + data.getWaveVelocity();
-	    			lineCounter++;
-	    		}
+				if (data == null){
+					System.out.println("Error during extraction! Check your raw data - it might be empty or corrupted");
+				}
+				MobData currentMob = new MobData(data,rawName,rangeName,conecv,trapcv,transfcv,wh,wv);
+				allMobData.add(currentMob);
+			}
 
-	    		// WRITE THE ACTUAL DATA
-	    		try{
-		    		// Added catch for null mobdata if there's no (or all 0's) data in the file
-	    			lineIndex = 0;
-	    			if (data.getMobdata().length == 0){
-	    				// mobdata is empty! Write all 0's
-	    				for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
-	    					arraylines[i] = arraylines[i] + "," + String.valueOf(0);
-	    				}
-	    			}
-	    			// Otherwise, mobdata exists so write its contents to the lines (BOTH raw RT AND intensity)
-	    			for (int i = HEADER_LENGTH; i < data.getMobdata().length + HEADER_LENGTH - 1; i++){
-	    				int test = i;
-	    				int newtest = test;
-	    				arraylines[i] = arraylines[i] + "," + String.valueOf(data.getMobdata()[lineIndex][0]) + "," + String.valueOf(data.getMobdata()[lineIndex][1]);
-	    				lineIndex++;
-	    			}
+			// Now, write the output file
+			File out = new File(outputFilePath);
+			BufferedWriter writer = new BufferedWriter(new FileWriter(out));
 
-	    		} 
-	    		catch (NullPointerException ex){
-	    			// Warn the user that their data is no good
-	    			System.out.println("WARNING: " +
-	    					"No data in " + data.getRawFileName() + ", collision energy " + data.getCollisionEnergy());
+			// Get the formatted text output for the appropriate extraction type (RT has to be handled differently from others)
+			String[] arraylines = null;
+			if (extractionMode == RT_MODE){
+				arraylines = rtWriteOutputs(allMobData, infoTypes);
+			} else {
+				arraylines = dtmzWriteOutputs(allMobData, infoTypes);
+			}
 
-	    			for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
-	    				arraylines[i] = arraylines[i] + "," + String.valueOf(0);
-	    			}
+			// Now, write all the lines to file
+			for (String line : arraylines){
+				writer.write(line);
+				writer.write(lineSep);
+			}
+			writer.flush();
+			writer.close();
+		}
+		catch (FileNotFoundException ex) 
+		{
+			ex.printStackTrace();
+		} 
+		catch (IOException ex) 
+		{
+			ex.printStackTrace();
+		}
 
-	    		} catch (ArrayIndexOutOfBoundsException ex){
-	    			System.out.println("\n" + "WARNING: " +
-	    					"(Array index error) " + data.getRawFileName() + ", range File " + data.getRangeName());
-//	    			for (int i = HEADER_LENGTH; i < allMobData.get(0).getMobdata().length + HEADER_LENGTH; i++){	
-//	    				arraylines[i] = arraylines[i] + "," + "0";
-//	    				lineIndex++;
-//	    			}
-	    		}
-	    	}
-	    	return arraylines;
-	    }
-	    
-	    
+	}
+
+	/**
+	 * Helper method to format text output for MS or DT extractions. Assumes that each function 
+	 * (if using combined outputs) has the same bin names (e.g. DT bin 1, 2, 3, ...) and writes
+	 * one column per function using the same initial set of bins. Returns String[] that can
+	 * be directly written to the output file. 
+	 * @param allMobData
+	 * @param infoTypes
+	 * @return
+	 */
+	private String[] dtmzWriteOutputs(ArrayList<MobData> allMobData, boolean[] infoTypes){  	
+		ArrayList<String> lines = new ArrayList<String>();
+
+		// Headers
+		// Loop through the list of data, writing each function's value for this CE to the line
+		int HEADER_LENGTH = 1;
+		lines.add("#Range file name:");
+		if (infoTypes[USECONE_TYPES]){
+			lines.add("$ConeCV:"); 
+			HEADER_LENGTH++;
+		}
+		if (infoTypes[USETRAP_TYPES]){
+			lines.add("$TrapCV:"); 
+			HEADER_LENGTH++;
+		}
+		if (infoTypes[USETRANSF_TYPES]){
+			lines.add("$TransferCV:");
+			HEADER_LENGTH++;
+		}
+		if (infoTypes[USEWH_TYPES]){
+			lines.add("$WaveHt:"); 
+			HEADER_LENGTH++;
+		}
+		if (infoTypes[USEWV_TYPES]){
+			lines.add("$WaveVel:"); 
+			HEADER_LENGTH++;
+		}		
+
+		// ADD HEADER INFORMATION AND BIN NUMBERS TO THE LINES
+		int lineIndex = 0;
+		try {
+			// Mobdata is not empty, so write its contents to the array
+			for (int i = HEADER_LENGTH; i < allMobData.get(0).getMobdata().length + HEADER_LENGTH; i++){
+				lines.add(String.valueOf(allMobData.get(0).getMobdata()[lineIndex][0]));
+				lineIndex++;
+			}
+		} catch (NullPointerException ex){
+			for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
+				lines.add(String.valueOf(i - HEADER_LENGTH + 1));
+				lineIndex++;
+			}
+		}
+
+		// Convert to array from arraylist
+		String[] strings = new String[1];
+		String[] arraylines = lines.toArray(strings);
+		arraylines[0] = lines.get(0);    	
+
+		// FILL IN THE ARRAY WITH ACTUAL DATA, starting with headers
+		for (MobData data : allMobData){
+			int lineCounter = 0;
+			// Print the range name only for the first data column
+			if (allMobData.indexOf(data) == 0)
+				arraylines[0] = arraylines[0] + "," + data.getRangeName();
+			lineCounter++;
+
+			// Print desired header information for the specified info types
+			if (infoTypes[USECONE_TYPES]){
+				arraylines[lineCounter] = arraylines[lineCounter] + "," + data.getConeCV();
+				lineCounter++;
+			}
+			if (infoTypes[USETRAP_TYPES]){
+				arraylines[lineCounter] = arraylines[lineCounter] + "," + data.getTrapCV();
+				lineCounter++;
+			}
+			if (infoTypes[USETRANSF_TYPES]){
+				arraylines[lineCounter] = arraylines[lineCounter] + "," + data.getTransferCV();
+				lineCounter++;
+			}
+			if (infoTypes[USEWH_TYPES]){
+				arraylines[lineCounter] = arraylines[lineCounter] + "," + data.getWaveHeight();
+				lineCounter++;
+			}
+			if (infoTypes[USEWV_TYPES]){
+				arraylines[lineCounter] = arraylines[lineCounter] + "," + data.getWaveVelocity();
+				lineCounter++;
+			}
+
+			// WRITE THE ACTUAL DATA
+			try{
+				// Added catch for null mobdata if there's no (or all 0's) data in the file
+				lineIndex = 0;
+				// Catch empty mobdata
+				if (data.getMobdata().length == 0){
+					for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
+						arraylines[i] = arraylines[i] + "," + String.valueOf(0);
+					}
+				}
+				for (int i = HEADER_LENGTH; i < data.getMobdata().length + HEADER_LENGTH; i++){
+					arraylines[i] = arraylines[i] + "," + String.valueOf(data.getMobdata()[lineIndex][1]);
+					lineIndex++;
+				}
+
+			} 
+			catch (NullPointerException ex){
+				// Warn the user that their data is no good
+				System.out.println("WARNING: " +
+						"No data in " + data.getRawFileName() + ", collision energy " + data.getCollisionEnergy());
+
+				for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
+					arraylines[i] = arraylines[i] + "," + String.valueOf(0);
+				}
+
+			} catch (ArrayIndexOutOfBoundsException ex){
+				System.out.println("\n" + "WARNING: " +
+						"(Array index error) " + data.getRawFileName() + ", range File " + data.getRangeName()
+						+ "\n" + "Writing all 0's for this range");
+				for (int i = HEADER_LENGTH; i < allMobData.get(0).getMobdata().length + HEADER_LENGTH; i++){	
+					arraylines[i] = arraylines[i] + "," + "0";
+					lineIndex++;
+				}
+			}
+		}
+		return arraylines;
+	}
+
+	/**
+	 * Alternate method for writing output data. Because RT data never repeats the same 'bins'
+	 * (the time keeps increasing by function, unlike DT and MZ, which are the same for all functions),
+	 * the data needs to have each function's 'x' data (raw RT) saved as well as 'y' (intensity).
+	 * Otherwise, code is identical to dtmzWriteOutputs. Duplicated rather than putting if/else 
+	 * at every single line in a single method. 
+	 * @param allMobData
+	 * @param infoTypes
+	 * @return
+	 */
+	private String[] rtWriteOutputs(ArrayList<MobData> allMobData, boolean[] infoTypes){  	
+		ArrayList<String> lines = new ArrayList<String>();
+
+		// Headers
+		// Loop through the list of data, writing each function's value for this CE to the line
+		int HEADER_LENGTH = 1;
+		lines.add("#Range file name:");
+		if (infoTypes[USECONE_TYPES]){
+			lines.add("$ConeCV:"); 
+			HEADER_LENGTH++;
+		}
+		if (infoTypes[USETRAP_TYPES]){
+			lines.add("$TrapCV:"); 
+			HEADER_LENGTH++;
+		}
+		if (infoTypes[USETRANSF_TYPES]){
+			lines.add("$TransferCV:");
+			HEADER_LENGTH++;
+		}
+		if (infoTypes[USEWH_TYPES]){
+			lines.add("$WaveHt:"); 
+			HEADER_LENGTH++;
+		}
+		if (infoTypes[USEWV_TYPES]){
+			lines.add("$WaveVel:"); 
+			HEADER_LENGTH++;
+		}		
+
+		// ADD HEADER INFORMATION AND BIN NUMBERS TO THE LINES
+		int lineIndex = 0;
+		try {
+			// Mobdata is not empty, so write its contents to the array
+			for (int i = HEADER_LENGTH; i < allMobData.get(0).getMobdata().length + HEADER_LENGTH; i++){
+				//    				lines.add(String.valueOf(allMobData.get(0).getMobdata()[lineIndex][0]));
+				lines.add("");
+				lineIndex++;
+			}
+		} catch (NullPointerException ex){
+			for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
+				lines.add(String.valueOf(i - HEADER_LENGTH + 1));
+				lineIndex++;
+			}
+		}
+
+		// Convert to array from arraylist
+		String[] strings = new String[1];
+		String[] arraylines = lines.toArray(strings);
+		arraylines[0] = lines.get(0);    	
+
+		// FILL IN THE ARRAY WITH ACTUAL DATA, starting with headers
+		for (MobData data : allMobData){
+			int lineCounter = 0;
+			// Print the range name only for the first data column
+			if (allMobData.indexOf(data) == 0)
+				arraylines[0] = arraylines[0] + "," + data.getRangeName();
+			lineCounter++;
+
+			// Print desired header information for the specified info types
+			if (infoTypes[USECONE_TYPES]){
+				arraylines[lineCounter] = arraylines[lineCounter] + ",," + data.getConeCV();
+				lineCounter++;
+			}
+			if (infoTypes[USETRAP_TYPES]){
+				arraylines[lineCounter] = arraylines[lineCounter] + ",," + data.getTrapCV();
+				lineCounter++;
+			}
+			if (infoTypes[USETRANSF_TYPES]){
+				arraylines[lineCounter] = arraylines[lineCounter] + ",," + data.getTransferCV();
+				lineCounter++;
+			}
+			if (infoTypes[USEWH_TYPES]){
+				arraylines[lineCounter] = arraylines[lineCounter] + ",," + data.getWaveHeight();
+				lineCounter++;
+			}
+			if (infoTypes[USEWV_TYPES]){
+				arraylines[lineCounter] = arraylines[lineCounter] + ",," + data.getWaveVelocity();
+				lineCounter++;
+			}
+
+			// WRITE THE ACTUAL DATA
+			try{
+				// Added catch for null mobdata if there's no (or all 0's) data in the file
+				lineIndex = 0;
+				if (data.getMobdata().length == 0){
+					// mobdata is empty! Write all 0's
+					for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
+						arraylines[i] = arraylines[i] + "," + String.valueOf(0);
+					}
+				}
+				// Otherwise, mobdata exists so write its contents to the lines (BOTH raw RT AND intensity)
+				for (int i = HEADER_LENGTH; i < data.getMobdata().length + HEADER_LENGTH - 1; i++){
+					arraylines[i] = arraylines[i] + "," + String.valueOf(data.getMobdata()[lineIndex][0]) + "," + String.valueOf(data.getMobdata()[lineIndex][1]);
+					lineIndex++;
+				}
+
+			} 
+			catch (NullPointerException ex){
+				// Warn the user that their data is no good
+				System.out.println("WARNING: " +
+						"No data in " + data.getRawFileName() + ", collision energy " + data.getCollisionEnergy());
+
+				for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
+					arraylines[i] = arraylines[i] + "," + String.valueOf(0);
+				}
+
+			} catch (ArrayIndexOutOfBoundsException ex){
+				System.out.println("\n" + "WARNING: " +
+						"(Array index error) " + data.getRawFileName() + ", range File " + data.getRangeName());
+				//	    			for (int i = HEADER_LENGTH; i < allMobData.get(0).getMobdata().length + HEADER_LENGTH; i++){	
+				//	    				arraylines[i] = arraylines[i] + "," + "0";
+				//	    				lineIndex++;
+				//	    			}
+			}
+		}
+		return arraylines;
+	}
+
+
 	    
 	/**
 	 * Rule file spectrum extract method. Passes the extraction argument string to generateMZ. 
@@ -1023,7 +890,7 @@ private static void setRoot(String path)
 		            StackTraceElement[] trace = ex.getStackTrace();
 		            for( int i=0; i<trace.length; i++ )
 		            {
-		                StackTraceElement st = trace[i];
+//		                StackTraceElement st = trace[i];
 		//                _log.writeMessage(st.toString());
 		            }
 		            return null;
@@ -1411,214 +1278,57 @@ private static void setRoot(String path)
             Logger.getLogger(IMExtractRunner.class.getName()).log(Level.SEVERE, null, ex);
         } 
     }
-    
-    // OLD VERSION
-     /**
-     * @param args the command line arguments
-     */
 
+	// Flags indicating the position of data values in an array
+	public static final int START_MZ = 0;
+	public static final int STOP_MZ = 1;
+	public static final int MZ_BINS = 2;
+	public static final int START_RT = 3;
+	public static final int STOP_RT = 4;
+	public static final int RT_BINS = 5;
+	public static final int START_DT = 6;
+	public static final int STOP_DT = 7;
+	public static final int DT_BINS = 8;
+
+	// Trace data types
+	public static int RT_MODE = 0;
+	public static int DT_MODE = 1;
+	public static int MZ_MODE = 2;
+	public static int DTMZ_MODE = 3;
+
+	// Range values 
+	private static double minMZ = 0.0;
+	private static double maxMZ = 0.0;
+	private static double mzBins = 0.0;
+	private static double minRT = 0.0;
+	private static double maxRT = 0.0;
+	private static double rtBins = 0.0;
+	private static double minDT = 0.0;
+	private static double maxDT = 0.0;
+	private static double dtBins = 0.0;
+	private static double zHigh = Double.MIN_VALUE;
+	private static double zLow = Double.MAX_VALUE;
+	
+	private static File exeFile;
+	public static int BPI = 1;
+	public static int TIC = 0;
+	private static final int USECONE_TYPES = 0;
+	private static final int USETRAP_TYPES = 1;
+	private static final int USETRANSF_TYPES = 2;
+	private static final int USEWH_TYPES = 3;
+	private static final int USEWV_TYPES = 4;
 
 	/**
-     * Generates a DTMZ map for the specified raw file and function
-     * @param rawFile - the target raw file
-     * @param nFunction - the target data function
-     * @param startMZ - the start mz range
-     * @param stopMZ - to the stop mz range
-     * @param startRT - the start rt range
-     * @param stopRT - the stop rt range
-     * @param startDT - the start dt range
-     * @param stopDT - the stop dt range
-     */
-//    private static String generateDTMZSlice(String replicateID, File rawFile, int nFunction,
-//            double startMZ, double stopMZ, double startRT, double stopRT, double startDT, double stopDT, 
-//            int mzbins, boolean bSelectRegion, File ruleFile){
-//    	
-//        // A StringBUilder for the command line arguments
-//        StringBuilder cmdarray = new StringBuilder();
-//        // Get the preferred number of MZ bins
-//        int nPrefMaxMZbins = preferences.getnMaxMZBins();
-//        
-//        // MIGHT NEED TO CHANGE MAX MZ BINS TO ACTUAL MZ BINS FROM RANGE ARRAY
-//        
-//        // Build the commandline
-//        cmdarray.append(startMZ + " " + stopMZ + " " + mzbins + " " + lineSep);
-//        cmdarray.append(startRT + " " + stopRT + " " + 1 + " " + lineSep); // Note the number of RT bins here is 1 as we are collapsing the RT range into a single bin
-//        cmdarray.append(startDT + " " + stopDT + " " + 200 + " " + lineSep);
-//        
-//        String path = root.getPath() + File.separator + replicateID + ".2dDTMZ";
-//        
-//        try
-//        {
-//            // Write out the 2DDTMZ ranges file...
-//            File dtmzRangeFile = new File(preferences.getLIB_PATH() + "\\ranges_2DDTMZ.txt");
-//            BufferedWriter writer = new BufferedWriter(new FileWriter(dtmzRangeFile));
-//            writer.write(cmdarray.toString());
-//            writer.flush();
-//            writer.close();
-//
-//            // Create a 2dDTMZ file for the imextract to write to
-//            File file = new File(path);
-////            DataModel model = DataModelFactory.getDataModel();
-////            DataProcess dp = model.getCurrentProcess();
-////            if(dp != null && dp.getProcessType() != 0)
-////                file.deleteOnExit();
-////            if(file.exists())
-////                System.out.println((new StringBuilder()).append("Deleted?").append(file.delete()).toString());
-//
-//            // Clear the commandarray
-//            cmdarray.setLength(0);
-//            // Build the command for imextract
-//            cmdarray.append(exeFile.getCanonicalPath() + " ");
-//            cmdarray.append("-d ");
-//            cmdarray.append("\"" + rawFile.getPath() + "\" ");
-//            cmdarray.append("-f " + nFunction + " ");
-//            cmdarray.append("-o ");
-//            cmdarray.append("\"" + getRoot().getPath() + File.separator + replicateID + ".2dDTMZ\" ");
-//            cmdarray.append("-t ");
-//            cmdarray.append("mobilicube ");
-//            cmdarray.append("-p ");
-//            cmdarray.append("\"" + preferences.getLIB_PATH() +  "\\ranges_2DDTMZ.txt\"");
-//            
-//            if (bSelectRegion){
-//            	if( ruleFile.exists() )
-//                {
-//                    cmdarray.append(" -pdtmz ");
-//                    cmdarray.append("\"" + ruleFile.getAbsolutePath() + "\"");
-//                }
-//                File dtmz = new File((new StringBuilder()).append(getRoot().getPath()).append(File.separator).append("dtmz_selRegion.txt").toString());
-//                if(dtmz.exists())
-//                {
-//                	cmdarray.append(" -pdtmz ");
-//                	cmdarray.append("\"" + dtmz.getAbsolutePath() + "\"");
-//                }
-//                File rtdt = new File((new StringBuilder()).append(getRoot().getPath()).append(File.separator).append("rtdt_selRegion.txt").toString());
-//                if(rtdt.exists())
-//                {
-//                	cmdarray.append(" -prtdt ");
-//                	cmdarray.append("\"" + rtdt.getAbsolutePath() + "\"");
-//                }
-//                File rtmz = new File((new StringBuilder()).append(getRoot().getPath()).append(File.separator).append("rtmz_selRegion.txt").toString());
-//                if(rtmz.exists())
-//                {
-//                	cmdarray.append(" -prtmz ");
-//                	cmdarray.append("\"" + rtmz.getAbsolutePath() + "\"");
-//                }
-//            }
-//            
-//            //log.writeMessage((new StringBuilder()).append("Generating DTMZ map: ").append(cmdarray).toString());
-////            progMon.updateStatusMessage("Generating DTMZ map");
-//            runIMSExtract(cmdarray.toString());
-//        }
-//        catch(Exception ex)
-//        {
-//            //log.writeMessage(ex.getMessage());
-//            StackTraceElement trace[] = ex.getStackTrace();
-//            for(int i = 0; i < trace.length; i++)
-//            {
-//                StackTraceElement st = trace[i];
-//                //log.writeMessage(st.toString());
-//            }
-//        }
-//        return path;
-//    }
-	
+	 * @return the zHigh
+	 */
+	public static double getzHigh() {
+	    return zHigh;
+	}
 
-	//private double[][] generateReplicateDTMZ(String rawPath, int nfunction, int slice, 
-//			boolean selectRegion, double[] rangeValues, String rangeName, File ruleFile, boolean ruleMode)throws FileNotFoundException, IOException {
-	//
-//		File rawFile = new File(rawPath);	
-//		String rawDataName = rawFile.getName();
-//		// Get a unique id for the replicate chromatogram
-//		// Edited to make it actually unique for multiple range files - added name of Range file to it
-//		String replicateID = null;
-//		if( slice > 0 )
-//			replicateID = rangeName + "_" + rawDataName + "_" + nfunction + "[" + slice + "]";
-//		else
-//			replicateID = rangeName + "_" + rawDataName + "_" + nfunction + "[" + rangeValues[START_DT] + "_" + rangeValues[STOP_DT]  + "]";
-	//
-//		// Generate a spectrum for the full data
-//		String specPath = "";
-//		if (ruleMode){
-//			specPath = generateDTMZSlice(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], selectRegion, ruleFile);
-//		} else {
-//			specPath = generateDTMZSlice(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], selectRegion, null);
-//		}
-	//
-//		double[][] data = getTraceData(specPath, DTMZ_MODE);
-//		return data;
-	//}
-	
-//	    /**
-//	     * Main class for testing
-//	     * @param args the command line arguments
-//	     */
-//	    public static void main(String[] args)
-//	    {
-//	        try
-//	        {
-//	            setRoot( "C:\\Temp\\test\\HDMSCompare\\Analysis 1");
-//	             
-//	            System.out.println("Running imextract");
-//	            String replicatePath = "C:\\Share\\DummyData\\IMS Compare Data\\Jengen\\012508_ri_2.raw";
-//	            File rawFile = new File(replicatePath);
-//	            String rawDataName = rawFile.getName();
-//	            //rawDataName = rawDataName.substring(0, rawDataName.lastIndexOf(".raw") - 1);
-//	            int nfunction = 1;
-//	            // Get the full data ranges
-//	            getFullDataRanges(rawFile, nfunction);
-//	            // read the full data ranges
-//	            double[] rangeValues = readDataRanges();
-//
-//	            double startRTInit = rangeValues[START_RT];
-//	            double stopRTInit = rangeValues[STOP_RT];
-//	            double rtRangeInit = stopRTInit - startRTInit;
-//	            int nslices = 10;
-//	            double sliceStep = NumberUtils.round(rtRangeInit / nslices, 4);
-//
-//	            // Generate the DTMZ slice for the full ranges
-//	            // Get a unique id for the next slice
-//	            String replicateID = rawDataName + "_" + nfunction + "[0]";
-//	            // Generate the DTMZ slice of the full data
-//	            generateDTMZSlice(replicateID, rawFile, nfunction, rangeValues[0], rangeValues[1], rangeValues[3], rangeValues[4], rangeValues[6], rangeValues[7], null);
-//	            // Generate a chromatogram for the full data
-//	            generateRT(replicateID, rawFile, nfunction, rangeValues[0], rangeValues[1], rangeValues[3], rangeValues[4], rangeValues[6], rangeValues[3], (int)rangeValues[5], false);
-//	            // Genereate a mobiligram for the full data
-////	            generateDT(replicateID, rawFile, nfunction, rangeValues[0], rangeValues[1], rangeValues[3], rangeValues[4], rangeValues[6], rangeValues[3], (int)rangeValues[8]);
-//	            // Generate a spectrum for the full data
-////	            generateMZ(replicateID, rawFile, nfunction, rangeValues[0], rangeValues[1], rangeValues[3], rangeValues[4], rangeValues[6], rangeValues[3], (int)rangeValues[2]);
-	//
-//	            System.out.println(replicateID + " = " + rangeValues[3] + " : " + rangeValues[4]);
-//	            // now generate the specifed number of DTMZ slices
-//	            for( int i=0; i<nslices; i++ )
-//	            {
-//	                double step = sliceStep * i;
-//	                double startRT = NumberUtils.round(startRTInit + step, 4);
-//	                double stopRT = NumberUtils.round(startRT + sliceStep, 4);
-//	                if( stopRT > stopRTInit )
-//	                    stopRT = stopRTInit;
-//	                int repIndex = i+1;
-//	                replicateID = rawDataName + "_" + nfunction + "[" + repIndex + "]";
-	//
-//	                // Generate the next DTMZ slice
-//	                generateDTMZSlice(replicateID, rawFile, nfunction, rangeValues[0], rangeValues[1], startRT, stopRT, rangeValues[6], rangeValues[7], null);
-//	                // Generate a chromatogram for this slice
-//	                generateRT(replicateID, rawFile, nfunction, rangeValues[0], rangeValues[1], startRT, stopRT, rangeValues[6], rangeValues[3], (int)rangeValues[5], false);
-//	                // Genereate a mobiligram for this slice
-////	                generateDT(replicateID, rawFile, nfunction, rangeValues[0], rangeValues[1], startRT, stopRT, rangeValues[6], rangeValues[3], (int)rangeValues[8]);
-//	                // Generate a spectrum for this slice
-////	                generateMZ(replicateID, rawFile, nfunction, rangeValues[0], rangeValues[1], startRT, stopRT, rangeValues[6], rangeValues[3], (int)rangeValues[2]);
-	//
-//	                System.out.println(replicateID + " = " + startRT + " : " + stopRT);
-//	            }
-	//
-//	            System.out.println("Complete");
-//	        }
-//	        catch( Exception ex )
-//	        {
-//	            System.out.println("ERROR!");
-//	            ex.printStackTrace();
-//	        }
-	//
-//	    }
-
+	/**
+	 * @return the zLow
+	 */
+	public static double getzLow() {
+	    return zLow;
+	}
 }

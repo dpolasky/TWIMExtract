@@ -16,7 +16,6 @@ import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.awt.event.KeyEvent;
-//import com.dyson.chart.data.xyz.DoubleXYZDataSeries;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -36,106 +35,22 @@ import javax.swing.JTextField;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
 
-import java.util.logging.*;
 
 /**
- * General tool for extracting 1 dimensional DT and MZ datasets from Waters .raw files using specified
- * ranges or selection rules. Includes basic user interface (this class) and wrapper to handle running 
- * IMSExtract.exe with appropriate settings. 
- * @author EIKNEE, 
- * @author dpolasky
- * @version Unified v3.6.3, last edited 10/4/16
+ * General tool for extracting 1 dimensional retention time (RT), drift time (DT) and mass spectral
+ * (MZ) datasets from Waters' .raw to text format. CIUGenFrame object provides user interface and 
+ * handles calls to IMExtractRunner and utilities for extracting data using the IMSExtract.exe 
+ * executable from Waters with appropriate settings. Please refer to the user manual for more information.
+ * @author Dan Polasky
+ * @author built off of framework from Keiran Evans (Waters)
+ * @version TWIMExtract v1.0
  *
  */
 public class CIUGenFrame extends javax.swing.JFrame 
 {	
-	private static final String TITLE = "TWIMExtract v0.1";
+	private static final String TITLE = "TWIMExtract v1.0";
 	
-	// timing check globals
-	private static long startTime;
-	private long initComps;
-	private long extrStart;
-	private long extrEnd;
-	private long oldRangesBefore;
-	
-	
-	private static final long serialVersionUID = -1971838044338723234L;
-	private JFileChooser fc = null;
-    private JFileChooser rangefc = null;
-    private JFileChooser batchfc = null;
-    private JFileChooser rulefc = null;
-    
-    private String rawFileDirectory;
-    private String rangeFileDirectory;
-    private String outputDirectory; 
-	private String batchFileDirectory;
-	private String ruleFileDirectory;
-	
-    //single instance of preferences
-    private static Preferences preferences = Preferences.getInstance();
-      
-    
-    // CheckBox booleans
-    private boolean useTrapCV;
-    private boolean useTransfCV;
-    private boolean useConeCV;
-    private boolean useWavevel;
-    private boolean useWaveht;
-
-    // Mode settings
-    private boolean verboseMode = false;
-    private boolean ruleMode = false;
-    private boolean combine_outputs = true;
-    private boolean newRangefileMode = true;	// if false, allows legacy format range files (9 fields) to be used instead of new range files (6 fields)
-	private boolean fastMode = true;	// Determines how often to check the # of bins (fast = at the start of a new raw file, otherwise it's done for each function)
-
-    // global file information
-    private ArrayList<String> rawPaths;
-    
-    // String locations for function strings from getAllFunctionInfo
-    private static final int TRAPCV_SPLITS = 3;
-    private static final int WH_SPLITS = 5;
-    private static final int WV_SPLITS = 6;
-    private static final int TRANSFCV_SPLITS = 4;
-    private static final int CONECV_SPLITS = 2;
-    private static final int SELECTED_SPLITS  = 1;
-    private static final int FN_SPLITS = 0;
-    
-    // String locations for table model (includes filename) - has to be in this order because that's the order it displays in the GUI
-    private static final int FN_TABLE = 0;
-    private static final int FILENAME_TABLE = 1;
-    private static final int SELECT_TABLE = 2;
-    private static final int CONECV_TABLE = 3;
-    private static final int TRAPCV_TABLE = 4;
-    private static final int TRANSFCV_TABLE = 5;
-    private static final int WH_TABLE = 6;
-    private static final int WV_TABLE = 7;
-    
-    // Menu components
-	private JMenuBar menuBar;
-	private JMenu fileMenu;
-	private JMenu batchMenu;
-	private JMenu optionMenu;
-	private JMenu advancedMenu;
-	private JMenu helpMenu;
-	private JMenuItem helpItem;
-	private JMenuItem exampleItem;
-	private JMenuItem aboutItem;
-	private JMenuItem rawDirItem;
-	private JMenuItem rangeDirItem;
-	private JMenuItem outDirItem;
-	private JMenuItem runBatchItem;
-	private JMenuItem batchDirItem;
-	private JMenuItem ruleDirItem;
-	private JMenuItem printRangeOptionItem;
-	private JMenuItem toggleRulesItem;
-	private JMenuItem toggleCombineItem;
-	private JMenuItem fastModeItem;
-	private JMenuItem legacyRangeItem;
-	private MenuActions menuActionListener = new MenuActions();
-	private runButtonActions runButtonActionListener = new runButtonActions();
-	
-    /**
+	/**
      * Creates new form CIUGenFrame GUI
      */
     public CIUGenFrame() 
@@ -151,7 +66,6 @@ public class CIUGenFrame extends javax.swing.JFrame
     
     /**
      * Listener class for menu items
-     * @author Dan
      *
      */
     public class MenuActions implements ActionListener{
@@ -301,13 +215,27 @@ public class CIUGenFrame extends javax.swing.JFrame
 					e1.printStackTrace();
 				}
 				
+			} else if (e.getSource() == ruleHelpItem){
+				// Open the rule help file to show the user how to make rule files
+				ProcessBuilder exampleRunner = new ProcessBuilder("notepad.exe", preferences.getRULE_EX_PATH());
+				try {
+					exampleRunner.start();
+				} catch (IOException e1) {
+					e1.printStackTrace();
+				}
+				
 			} else if (e.getSource() == aboutItem){
 				// Open the 'about' information tab with version, author, etc. Arbitrarily using JPanel1 as the parent component.
-				JOptionPane.showMessageDialog(jPanel1_top, "By Dan Polasky");
+				JOptionPane.showMessageDialog(jPanel1_top, "*** TWIMExtract v1.0 *** \n"
+						+ "Please cite: Haynes, S.E., Polasky D. A., Majmudar, J. D., Dixit, S. M., Ruotolo, B. T., Martin, B. R. "
+						+ "\n Variable-velocity traveling-wave ion mobility separation enhances peak capacity for "
+						+ "\n data-independent acquisition proteomics. Manuscript in preparation");
 			}
 		}
     	
     }
+    
+    // Determine which run button the user clicked and run the appropriate extraction method
     public class runButtonActions implements ActionListener {
 		
 		public void actionPerformed(ActionEvent e) {
@@ -319,12 +247,10 @@ public class CIUGenFrame extends javax.swing.JFrame
 				runExtractorButton(e, IMExtractRunner.RT_MODE);
 			} 
 		}
-		
 	}
 	/**
      * Initialize primary GUI components
      */    
-    // <editor-fold defaultstate="collapsed" desc="Generated Code">//GEN-BEGIN:initComponents
     private void initGUIComponents() {
     	// initialize menus
     	initMenus();
@@ -348,7 +274,6 @@ public class CIUGenFrame extends javax.swing.JFrame
     	runButton_DT = new javax.swing.JButton(); 
     	runButton_MZ = new javax.swing.JButton();
     	runButton_RT = new javax.swing.JButton();
-//    	runButton_DTMZ = new javax.swing.JButton();
     	
     	trapcvCheckBox = new javax.swing.JCheckBox();
     	transfcvCheckBox = new javax.swing.JCheckBox();
@@ -435,14 +360,12 @@ public class CIUGenFrame extends javax.swing.JFrame
     	runPanel.add(runButton_MZ);
     	runPanel.add(runButton_DT);
     	runPanel.add(runButton_RT);
-//    	runPanel.add(runButton_DTMZ);
     	jPanel3.add(runPanel, java.awt.BorderLayout.EAST);
     	
     	// Initialize check boxes
     	initCheckBoxes();
  
     	jPanel3.add(checkBoxPanel, java.awt.BorderLayout.SOUTH);
-//    	jPanel2.add(jPanel3, java.awt.BorderLayout.NORTH);
     	
     	getContentPane().add(jPanel2, java.awt.BorderLayout.WEST);
     	getContentPane().add(tabbedPane, java.awt.BorderLayout.CENTER);
@@ -472,12 +395,6 @@ public class CIUGenFrame extends javax.swing.JFrame
     	runButton_RT.setText("Extract RT");
     	runButton_RT.setToolTipText("Extracts a 1-dimensional retention time chromatogram (collapses all MZ and DT information). "
     			+ "Will open a dialog to select the range or rule file with the range(s) to extract.");
-    	
-//    	runButton_DTMZ.addActionListener(runButtonActionListener);
-//    	runButton_DTMZ.setText("Extract 2D DT+MS");
-//    	runButton_DTMZ.setToolTipText("Extracts 2-dimensional drift time/mass spectrum data (collapses RT only). "
-//    			+ "Will open a dialog to select the range or rule file with the range(s) to extract.");
-    	
     }
     
     private void initMenus(){
@@ -552,6 +469,9 @@ public class CIUGenFrame extends javax.swing.JFrame
 		exampleItem = new JMenuItem("Open range file example");
 		exampleItem.addActionListener(menuActionListener);
 		helpMenu.add(exampleItem);
+		ruleHelpItem = new JMenuItem("Open rule file help");
+		ruleHelpItem.addActionListener(menuActionListener);
+		helpMenu.add(ruleHelpItem);
 		aboutItem = new JMenuItem("About");
 		aboutItem.addActionListener(menuActionListener);
 		helpMenu.add(aboutItem);
@@ -677,19 +597,6 @@ public class CIUGenFrame extends javax.swing.JFrame
     	checkBoxPanel.add(wvCheckBox);
     }
        
-    /**
-     * GUI method to prompt the user for config information (default input and output directories)
-     * when they try to use the tool without a config file (e.g. first time use). Only the output
-     * directory is required (otherwise outputs will be saved to default directory, which can
-     * be hard to find sometimes). 
-     */
-    private void warnConfig(){
-    	// Show a dialog informing the user that no config files have been generated
-    	JOptionPane.showMessageDialog(browseDataButton, "Warning: No output directory selected. \n Please"
-    			+ " use 'File/Select Output Directory' to choose where your extracted data \n will be saved before running"
-    			+ " the extractor. Thank you!");
-    }
-    
     /**
      * Opens filechooser for the user to choose the raw files they'd like to extract, then loads those
      * files into the function table using the getAllFunctionInfo parsing method. 
@@ -957,9 +864,6 @@ public class CIUGenFrame extends javax.swing.JFrame
 		
 	}
 
-
-	
-
 	/**
 	 * Method opens a filechooser for the user to select their desired batch csv file, then uses
 	 * the runBatch method to execute the batch run. 
@@ -969,6 +873,16 @@ public class CIUGenFrame extends javax.swing.JFrame
 	private void runBatchCSV(){
 		batchfc.setCurrentDirectory(new File(batchFileDirectory));
 		
+		// First, get mode arguments (range/rule, mz/dt/rt, and combined/individual) by making a popup
+		Object[] modeOptions = {"RT", "DT", "MZ"};
+		int extractionMode = JOptionPane.showOptionDialog(jPanel2, 
+				"Please select the extraction mode for this batch:"
+				+ "\n NOTE: the range/rule and combine outputs modes \n "
+				+ "on the main interface will be used for the batch", 
+				"BATCH MODE", JOptionPane.YES_NO_CANCEL_OPTION, JOptionPane.QUESTION_MESSAGE, 
+				null, modeOptions, modeOptions[1]);
+				
+		// Prompt the user to select the csv containing the batch file information
 		if (batchfc.showDialog(this, "OK") == 0){
 			// Counters for printing status
 			int batchCounter = 1;
@@ -978,11 +892,13 @@ public class CIUGenFrame extends javax.swing.JFrame
 				// User has chosen a csv file containing the desired lists
 	    		File csvFile = batchfc.getSelectedFile();
 	    		
-	    		// Quickly read the file to get the number of lines present
+	    		// Do an initial read to get the number of lines present
 	    		BufferedReader quickreader = new BufferedReader(new FileReader(csvFile));
 	    		String quickline = quickreader.readLine();
 	    		while (quickline != null){
-	    			linecounter++;
+	    			// ignore header lines marked with '#'
+	    			if (! quickline.startsWith("#"))
+	    				linecounter++;
 	    			quickline = quickreader.readLine();
 	    		}
 	    		quickreader.close();
@@ -993,25 +909,27 @@ public class CIUGenFrame extends javax.swing.JFrame
 	    		// loop through the file and analyze each line as a separate extraction
 	    		String line = reader.readLine();
 	    		while ( line != null){
-	    			String[] splits = line.split(",");
-	        		String rawfolderpath = splits[0];
-	        		String rangefolderpath = splits[1];
-	        		
-	    			// **************** Get the associated files into an array to pass to the extractor **********************
-	    			File rawTopFolder = new File(rawfolderpath);
-	    			File[] rawFiles = rawTopFolder.listFiles(new RawFileFilter());
-	
-	    			// **************** Once files are ready, get the associated ranges to pass to the extractor *****************
-	    			File rangeFileTopFolder = new File(rangefolderpath);
-	    			File[] rangeFiles = rangeFileTopFolder.listFiles(new TextFileFilter());
-	
-	    			// ******** Once both raw and range files are ready, extract the data! *******
-	    			extractBatchData(rawFiles, rangeFiles);
-	    			System.out.println("*******************************************************");
-	        		System.out.println("Done with Batch " + batchCounter + " of " + linecounter);
-	        		System.out.println("*******************************************************");
-	        		batchCounter++;
-	        		
+	    			// Ignore header lines marked with '#'
+	    			if (! line.startsWith("#")){
+	    				String[] splits = line.split(",");
+	    				String rawfolderpath = splits[0];
+	    				String rangefolderpath = splits[1];
+
+	    				// **************** Get the associated files into an array to pass to the extractor **********************
+	    				File rawTopFolder = new File(rawfolderpath);
+	    				File[] rawFiles = rawTopFolder.listFiles(new RawFileFilter());
+
+	    				// **************** Once files are ready, get the associated ranges to pass to the extractor *****************
+	    				File rangeFileTopFolder = new File(rangefolderpath);
+	    				File[] rangeFiles = rangeFileTopFolder.listFiles(new TextFileFilter());
+
+	    				// ******** Once both raw and range files are ready, extract the data! *******
+	    				extractBatchData(rawFiles, rangeFiles, extractionMode);
+	    				System.out.println("*******************************************************");
+	    				System.out.println("Done with Batch line " + batchCounter + " of " + linecounter);
+	    				System.out.println("*******************************************************");
+	    				batchCounter++;
+	    			}
 	    			line = reader.readLine();
 	    		}
 	    		
@@ -1035,7 +953,7 @@ public class CIUGenFrame extends javax.swing.JFrame
 	 * @param rawFiles: File array of raw files
 	 * @param rangeFiles: File array of range files
 	 */
-	public void extractBatchData(File[] rawFiles, File[] rangeFiles){
+	public void extractBatchData(File[] rawFiles, File[] rangeFiles, int extractionMode){
 		// First, clear the current data table (EDIT - moved up from further down in method)
 		DefaultTableModel tblModel = (DefaultTableModel)functionsTable.getModel();
 	    int rowCount = tblModel.getRowCount();
@@ -1046,32 +964,8 @@ public class CIUGenFrame extends javax.swing.JFrame
 	    // Load the data into the table model and update it
 	    openBrowsedData(rawFiles, tblModel);
 	    
-	    // Extract the data using the range files
-	    runExtractHelper(rangeFiles);
-	}
-
-	/**
-	 * Method that actually runs the code for extracting DT files. Allows multiple ways to get the range files
-	 * (e.g. batched vs filechooser) and still have everything go to the same place. 
-	 * @param rangeORruleFiles
-	 */
-	private void runExtractHelper(File[] rangeORruleFiles){
-		statusTextBar.setText("...Analyzing Data (may take a minute)...");
-		System.out.println("Analyzing data (may take some time)");
-	
-		// No lockmass check, so extract data and whatever information desired by the user
-		statusTextBar.setText("...Analyzing Data (may take a minute)...");
-		int counter = 1;
-		for (File rangeFile : rangeORruleFiles){
-//			DTLoopHelper(rangeFile, rangeORruleFiles.length);
-			System.out.println("\n" + "Completed Range File " + counter + " of " + rangeORruleFiles.length + "\n");
-			counter++;
-		}
-		System.out.println("Done!");
-		statusTextBar.setText("Done!");
-	
-		//One last thing - clean all the temp files out of the root folder
-		cleanRoot();
+	    // Run the extraction on the raw data with the specified mode and range or rule files
+	    runExtraction(rangeFiles, extractionMode);
 	}
 
 	/*
@@ -1091,10 +985,24 @@ public class CIUGenFrame extends javax.swing.JFrame
     }
 
     /**
+	 * GUI method to prompt the user for config information (default input and output directories)
+	 * when they try to use the tool without a config file (e.g. first time use). Only the output
+	 * directory is required (otherwise outputs will be saved to default directory, which can
+	 * be hard to find sometimes). 
+	 */
+	private void warnConfig(){
+		// Show a dialog informing the user that no config files have been generated
+		JOptionPane.showMessageDialog(browseDataButton, "Warning: No output directory selected. \n Please"
+				+ " use 'File/Select Output Directory' to choose where your extracted data \n will be saved before running"
+				+ " the extractor. Thank you!");
+	}
+
+	/**
      * Determination of function information for Waters raw data files. NOTE: Different Waters
      * instruments record their information with VARYING NAMES, meaning instrument type needs to
      * be determined before function info can be gathered. 
-     * NOTE: Only set up to work for Synapt HDMS and G2, no support for G2-S or G2-Si (for now)
+     * NOTE: Only intentionally set up to work for Synapt HDMS (aka G1) and G2. Seems to
+     * work fine for G2-S, has not been tested for G2-Si (for now)
      * @param rawDataPath
      * @return
      */
@@ -1367,7 +1275,91 @@ public class CIUGenFrame extends javax.swing.JFrame
     }
 
 
-	// Variables declaration - do not modify//GEN-BEGIN:variables
+	// timing check globals
+	private static long startTime;
+	private long initComps;
+	private long extrStart;
+	private long extrEnd;
+	private long oldRangesBefore;
+
+	private static final long serialVersionUID = -1971838044338723234L;
+
+	// File choosers and directories
+	private JFileChooser fc = null;
+	private JFileChooser rangefc = null;
+	private JFileChooser batchfc = null;
+	private JFileChooser rulefc = null;
+	private String rawFileDirectory;
+	private String rangeFileDirectory;
+	private String outputDirectory;
+	private String batchFileDirectory;
+	private String ruleFileDirectory;
+
+	//single instance of preferences
+	private static Preferences preferences = Preferences.getInstance();
+
+	// CheckBox booleans
+	private boolean useTrapCV;
+	private boolean useTransfCV;
+	private boolean useConeCV;
+	private boolean useWavevel;
+	private boolean useWaveht;
+
+	// Mode settings
+	private boolean verboseMode = false;
+	private boolean ruleMode = false;
+	private boolean combine_outputs = true;
+	private boolean newRangefileMode = true;	// if false, allows legacy format range files (9 fields) to be used instead of new range files (6 fields)
+	private boolean fastMode = true;	// Determines how often to check the # of bins (fast = at the start of a new raw file, otherwise it's done for each function)
+
+	// global file information
+	private ArrayList<String> rawPaths;
+
+	// String locations for function strings from getAllFunctionInfo
+	private static final int TRAPCV_SPLITS = 3;
+	private static final int WH_SPLITS = 5;
+	private static final int WV_SPLITS = 6;
+	private static final int TRANSFCV_SPLITS = 4;
+	private static final int CONECV_SPLITS = 2;
+	private static final int SELECTED_SPLITS  = 1;
+	private static final int FN_SPLITS = 0;
+
+	// String locations for table model (includes filename) - has to be in this order because that's the order it displays in the GUI
+	private static final int FN_TABLE = 0;
+	private static final int FILENAME_TABLE = 1;
+	private static final int SELECT_TABLE = 2;
+	private static final int CONECV_TABLE = 3;
+	private static final int TRAPCV_TABLE = 4;
+	private static final int TRANSFCV_TABLE = 5;
+	private static final int WH_TABLE = 6;
+	private static final int WV_TABLE = 7;
+
+	// Menu components - new
+	private JMenuBar menuBar;
+	private JMenu fileMenu;
+	private JMenu batchMenu;
+	private JMenu optionMenu;
+	private JMenu advancedMenu;
+	private JMenu helpMenu;
+	private JMenuItem helpItem;
+	private JMenuItem exampleItem;
+	private JMenuItem ruleHelpItem;
+	private JMenuItem aboutItem;
+	private JMenuItem rawDirItem;
+	private JMenuItem rangeDirItem;
+	private JMenuItem outDirItem;
+	private JMenuItem runBatchItem;
+	private JMenuItem batchDirItem;
+	private JMenuItem ruleDirItem;
+	private JMenuItem printRangeOptionItem;
+	private JMenuItem toggleRulesItem;
+	private JMenuItem toggleCombineItem;
+	private JMenuItem fastModeItem;
+	private JMenuItem legacyRangeItem;
+	private MenuActions menuActionListener = new MenuActions();
+	private runButtonActions runButtonActionListener = new runButtonActions();
+
+	// Variables declaration - original
     private javax.swing.JButton browseDataButton;
     private javax.swing.JTable functionsTable;
     private javax.swing.JLabel jLabel1;
@@ -1389,314 +1381,12 @@ public class CIUGenFrame extends javax.swing.JFrame
     private javax.swing.JButton runButton_DT; 
     private javax.swing.JButton runButton_MZ;
     private javax.swing.JButton runButton_RT;
-//    private javax.swing.JButton runButton_DTMZ;
     private javax.swing.JCheckBox trapcvCheckBox;
     private javax.swing.JCheckBox transfcvCheckBox;
     private javax.swing.JCheckBox conecvCheckBox;
     private javax.swing.JCheckBox whCheckBox;
     private javax.swing.JCheckBox wvCheckBox;
     private javax.swing.JPanel checkBoxPanel;
-    // End of variables declaration//GEN-END:variables
+    // End of variables declaration
    
 }
-
-
-///**
-//* Gets the function information for the specified raw data file
-//*/
-//private static Vector<String> getFunctionInfo2(String rawDataPath)
-//{
-//  File rawData = null;
-//  Vector<String> m_functions = new Vector<String>(); 
-//  
-//  
-////  try
-////  {
-//      try
-//      {
-//          // Function Types
-//          final int	FT_MS = 0;
-//          final int	FT_SIR = 1;
-//          final int	FT_DLY = 2;
-//          final int	FT_CAT = 3;
-//          final int	FT_OFF = 4;
-//          final int	FT_PAR = 5;
-//          final int	FT_DAU = 6;
-//          final int   FT_NL = 7;
-//          final int   FT_NG = 8;
-//          final int	FT_MRM = 9;
-//          final int	FT_Q1F = 10;
-//          final int	FT_MS2 = 11;
-//          final int	FT_DAD = 12;
-//          final int	FT_TOF = 13;
-//          final int	FT_PSD = 14;
-//          final int	FT_TOFS = 15;	// QTOF MS Survey scan
-//          final int	FT_TOFD = 16;	// QTOF MSMS scan (daughter )
-//          final int	FT_MTOF = 17;	// Maldi-Tof function superseeds RAW_FUNC_TOF and RAW_FUNC_PSD
-//          final int	FT_TOFM = 18;	// QTOF MS scan
-//          final int	FT_TOFP	= 19;	// QTOF Parent scan
-//          final int	FT_ASVS	= 20;	// AutoSpec Voltage Scan
-//          final int	FT_ASMS	= 21;	// AutoSpec Magnet Scan
-//          final int	FT_ASVSIR = 22;	// AutoSpec Voltage SIR
-//          final int	FT_ASMSIR = 23;	// AutoSpec Magnet SIR
-//          final int	FT_QUADD = 24;	// Quad Automated daughter scanning
-//
-//
-//          // Ion Modes
-//          final int	IM_EIPOS = 0;
-//          final int	IM_EIMIN = 1;
-//          final int	IM_CIPOS = 2;
-//          final int	IM_CIMIN = 3;
-//          final int	IM_FBPOS = 4;
-//          final int	IM_FBMIN = 5;
-//          final int	IM_TSPOS = 6;
-//          final int	IM_TSMIN = 7;
-//          final int	IM_ESPOS = 8;
-//          final int	IM_ESMIN = 9;
-//          final int	IM_AIPOS = 10;
-//          final int	IM_AIMIN = 11;
-//          final int	IM_LDPOS = 12;
-//          final int	IM_LDMIN = 13;
-//
-//          rawData = new File( rawDataPath);
-//          File functionsFile = new File( rawData, "_functns.inf" );
-//          RandomAccessFile rafFile = new RandomAccessFile( functionsFile, "r" );
-//          FileChannel channel = rafFile.getChannel();
-//
-//          // The memory mapped buffer for function info
-//          MappedByteBuffer nMbb = null;
-//          nMbb = channel.map( FileChannel.MapMode.READ_ONLY, 0L, functionsFile.length() );
-//          nMbb = nMbb.load();
-//          nMbb.order(ByteOrder.LITTLE_ENDIAN);
-//
-//          while( nMbb.position() < functionsFile.length() )
-//          {
-//              // Do the reading here
-//              short sVal = nMbb.getShort();
-//              int nFunctionType = (int)(sVal &0x001F);
-//              int nIonMode = (int)((sVal >> 5) &0x001F);
-//              int nDataType = (int)((sVal >> 10) &0x001F);
-//
-//              float fCycleTime = nMbb.getFloat();
-//              float fInterScanDelay = nMbb.getFloat();
-//              float fRTStart = nMbb.getFloat();
-//              float fRTEnd = nMbb.getFloat();
-//              int nTotalScans = nMbb.getInt();
-//
-//              sVal = nMbb.getShort();
-//              int nCollisionEnergy = (int)(sVal &0x00FF);
-//              int nSegmentCount = (int)((sVal >> 8) &0x00FF);
-//
-//              float fSetMass = nMbb.getFloat();
-//              float fInterSegTime = nMbb.getFloat();
-//
-//              int MAX_SEGMENTS = 32;
-//              float[] fSegScanTimes = new float[ MAX_SEGMENTS ];
-//              float[] fStartMass = new float[ MAX_SEGMENTS ];
-//              float[] fEndMass = new float[ MAX_SEGMENTS ];
-//
-//              for( int i=0; i<MAX_SEGMENTS; i++ )
-//              {
-//                  fSegScanTimes[ i ] = nMbb.getFloat();
-//              }
-//
-//              for( int i=0; i<MAX_SEGMENTS; i++ )
-//              {
-//                  fStartMass[ i ] = nMbb.getFloat();
-//              }
-//
-//              for( int i=0; i<MAX_SEGMENTS; i++ )
-//              {
-//                  fEndMass[ i ] = nMbb.getFloat();
-//              }
-//
-//              StringBuffer buffer = new StringBuffer();
-//              
-//              int functionNumber = m_functions.size() + 1;
-//              buffer.append( functionNumber );
-//
-//              // Get the type 
-////              switch(nFunctionType)
-////              {
-////                  case FT_MS:
-////                          buffer.append(  "MS" );
-////                          break;
-////                  case FT_SIR:
-////                          buffer.append(  "SIR" );
-////                          break;
-////                  case FT_DLY:
-////                          buffer.append(  "DLY" );
-////                          break;
-////                  case FT_CAT:
-////                          buffer.append(  "CAT" );
-////                          break;
-////                  case FT_OFF:
-////                          buffer.append(  "OFF" );
-////                          break;
-////                  case FT_PAR:
-////                          buffer.append(  "PAR" );
-////                          break;
-////                  case FT_DAU:
-////                          buffer.append(  "MSMS" );
-////                          break;
-////                  case FT_NL:
-////                          buffer.append(  "NL" );
-////                          break;
-////                  case FT_NG:
-////                          buffer.append(  "NG" );
-////                          break;
-////                  case FT_MRM:
-////                          buffer.append(  "MRM" );
-////                          break;
-////                  case FT_Q1F:
-////                          buffer.append(  "Q1F" );
-////                          break;
-////                  case FT_MS2:
-////                          buffer.append(  "MS2" );
-////                          break;
-////                  case FT_DAD:
-////                          buffer.append(  "DAD" );
-////                          break;
-////                  case FT_TOF:
-////                          buffer.append(  "TOF" );
-////                          break;
-////                  case FT_PSD:
-////                          buffer.append(  "PSD" );
-////                          break;
-////                  case FT_TOFS:
-////                          buffer.append(  "TOFS" );
-////                          break;
-////                  case FT_TOFD:
-////                          buffer.append(  "TOFD" );
-////                          break;
-////                  case FT_MTOF:// Maldi-Tof function superseeds RAW_FUNC_TOF and RAW_FUNC_PSD
-////                          buffer.append(  "MTOF" );
-////                          break;
-////                  case FT_TOFM:// QTOF MS scan
-////                          buffer.append(  "TOF MS" );
-////                          break;
-////                  case FT_TOFP:// QTOF Parent scan
-////                          buffer.append(  "TOT P" );
-////                          break;
-////                  case FT_ASVS:// AutoSpec Voltage Scan
-////                          buffer.append(  "TOT P" );
-////                          break;
-////                  case FT_ASMS:// AutoSpec Magnet Scan
-////                          buffer.append(  "TOT P" );
-////                          break;
-////                  case FT_ASVSIR:// AutoSpec Voltage SIR
-////                          buffer.append(  "TOT P" );
-////                          break;
-////                  case FT_ASMSIR:// AutoSpec Magnet SIR
-////                          buffer.append(  "TOT P" );
-////                          break;
-////                  case FT_QUADD:// Quad Automated daughter scanning
-////                          buffer.append(  "TOT P" );
-////              }
-//
-////              // Insert a space
-////              buffer.append( " " );
-////              // Include the mass range
-////              buffer.append( "(" + fStartMass[ 0 ] + ":" + fEndMass[ 0 ] + ")" );
-//              // Include the collision energy
-//              buffer.append( "," + nCollisionEnergy);
-//              // Insert a space
-//              buffer.append( ",false" );
-//
-////              // Get the ion mode
-////              switch(nIonMode)
-////              {
-////                  case IM_EIPOS:
-////                          buffer.append(  "EI+" );
-////                          break;
-////                  case IM_EIMIN:
-////                          buffer.append(  "EI-" );
-////                          break;
-////                  case IM_CIPOS:
-////                          buffer.append(  "CI+" );
-////                          break;
-////                  case IM_CIMIN:
-////                          buffer.append(  "CI-" );
-////                          break;
-////                  case IM_FBPOS:
-////                          buffer.append(  "FB+" );
-////                          break;
-////                  case IM_FBMIN:
-////                          buffer.append(  "FB-" );
-////                          break;
-////                  case IM_TSPOS:
-////                          buffer.append(  "TS+" );
-////                          break;
-////                  case IM_TSMIN:
-////                          buffer.append(  "TS-" );
-////                          break;
-////                  case IM_ESPOS:
-////                          buffer.append(  "ES+" );
-////                          break;
-////                  case IM_ESMIN:
-////                          buffer.append(  "ES-" );
-////                          break;
-////                  case IM_AIPOS:
-////                          buffer.append(  "AI+" );
-////                          break;
-////                  case IM_AIMIN:
-////                          buffer.append(  "AI-" );
-////                          break;
-////                  case IM_LDPOS:
-////                          buffer.append(  "LD+" );
-////                          break;
-////                  case IM_LDMIN:
-////                          buffer.append(  "LD-" );
-////                          break;
-////              }
-//
-//              m_functions.add( buffer.toString() );
-//          }
-//      }
-//      catch( Exception ex )
-//      {
-//          ex.printStackTrace();
-//          return m_functions;
-//      }
-//
-////      // Get all cdt file names
-////      String[] cdtFiles = rawData.list( new FilenameFilter()
-////      {
-////          public boolean accept(File dir, String name)
-////          {
-////              return name.endsWith( ".cdt" );
-////          }
-////      });
-////
-////      // Place all cdt file name in a container
-////      Vector v = new Vector();
-////
-////      if( cdtFiles != null )
-////      {
-////          for( int n=0; n<cdtFiles.length; n++ )
-////          {
-////              v.add( v.size(), cdtFiles[ n ] );
-////          }
-////      }
-//
-////      // Loop through the functions
-////      for( int i=0; i<v.size(); i++ )
-////      {
-////          // Check if the next function has an associated cdt file
-////          String cdtFileName = String.format("_func%03d.cdt",i+1); 
-////          if( v.contains( cdtFileName ) )
-////          {
-////              if( i <= m_functions.size() - 1 )
-////              {
-////                  getReplicateFunctions().add((i + 1) + ": " + m_functions.get( i ));
-////              }
-////              else
-////              {
-////                  getReplicateFunctions().add((i + 1) + ": " + "function " + ( i + 1 ));
-////              }
-////          }
-////      }
-////  
-//      return m_functions;
-//}
-

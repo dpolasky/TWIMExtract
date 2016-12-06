@@ -7,7 +7,6 @@ public class PreferencesHandler
   extends DefaultHandler
 {
   private Preferences preferences;
-  private String key;
   
   public PreferencesHandler()
   {
