@@ -27,7 +27,7 @@ public class Preferences
   private String batchDir;
   private String ruleDir;
   
-  private final String CIUGEN_HOME = "C:\\CIUGen";	
+  private final String CIUGEN_HOME = "C:\\TWIMExtract";	
   
   private String LIB_PATH;
   private String BIN_PATH;

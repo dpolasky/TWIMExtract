@@ -47,6 +47,7 @@ public class RawFileFilter
 	  }
 	  return bAccept;
   }
+  
   //Determine if the file is a 1dMZ file and accept it if so
   public static boolean acceptMZ(File file){
 	  String filename = file.getName().toLowerCase();
@@ -57,6 +58,23 @@ public class RawFileFilter
 		  } 
 		  // Catch a bad string location since the filename test is pretty rough cut. If an exception
 		  // happens, it's definitely not a .1dDT file. 
+	  } catch (StringIndexOutOfBoundsException ex){
+		  bAccept = false;
+		  return bAccept;
+	  }
+	  return bAccept;
+  }
+  
+  //Determine if the file is a 1dRT file and accept it if so
+  public static boolean acceptRT(File file){
+	  String filename = file.getName().toLowerCase();
+	  boolean bAccept = false;  
+	  try{
+		  if (filename.substring(filename.lastIndexOf(".")).equals(".1drt")){
+			  bAccept = true;
+		  } 
+		  // Catch a bad string location since the filename test is pretty rough cut. If an exception
+		  // happens, it's definitely not a .1dRT file. 
 	  } catch (StringIndexOutOfBoundsException ex){
 		  bAccept = false;
 		  return bAccept;
