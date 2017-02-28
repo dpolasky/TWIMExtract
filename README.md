@@ -7,24 +7,24 @@ If you use TWIMExtract, please cite:
 Haynes, S.E., Polasky D. A., Majmudar, J. D., Dixit, S. M., Ruotolo, B. T., 
 Martin, B. R. "Variable-velocity traveling-wave ion mobility separation enhances peak capacity for
 data-independent acquisition proteomics". Manuscript in preparation
- 
-
-
 ********************************************************************************
 
 Setup:
-	1) Download TWIMExtract_Setup.exe from https://
+
+	1) Download TWIMExtract_Setup.exe from http://sites.lsa.umich.edu/ruotolo/software/twim-extract/
 	2) Run TWIMExtract_Setup.exe. Setup will create a shortcut (Run_TWIMExtract.bat) that should be used 
 		to run the program. 
 	3) Double click Run_TWIMExtract.bat to run TWIMExtract
 
 General Info/Purpose:
+
 	- TWIMExtract will pull data from Waters .raw files using user-defined 'range files'. 
 	- Extracted data will be collapsed to one dimension, saving either chromatographic retention time (RT), 
 		ion mobility drift time (DT), or the mass spectrum (MZ) to one axis and intensity to the other. 
 	- Extracted data are saved to a comma separated text file (.csv) without further processing
 
 Basic Use:
+
 	1) To use TWIMExtract, start the program by double clicking the Run_TWIMExtract.bat shortcut
 
 	2) Prepare range/rule files:
@@ -59,6 +59,7 @@ Basic Use:
 		NOTE: extraction may take some time. Typically a few seconds per range file, but can be longer for large raw files. 
 
 Advanced/Other modes:
+
 	- Batch mode: To run multiple extractions in series, a batch can be generated. Batches consist of a single .csv
 		file that contains the location of a FOLDER containing raw files in one column and a FOLDER containing
 		range or rule files in the second column. Each line in the batch .csv represents a single extraction - that is, 
