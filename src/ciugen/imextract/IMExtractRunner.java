@@ -17,10 +17,12 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
+ * This file is part of TWIMExtract
+ * 
  * This object is a utility class for making calls to the imextract.exe in order to extract
  * specific ranges of HDMS data
- * @author dpolasky
- * @author UKKNEKM
+ * @author Daniel Polasky
+ * @author Kieran Neeson 
  */
 public class IMExtractRunner {
 	
@@ -109,6 +111,12 @@ public class IMExtractRunner {
         	File rangesTxt = new File(rangesName);
         	reader = new BufferedReader(new FileReader(rangesTxt));
         	while((line = reader.readLine()) != null){
+        		// Skip lines beginning with '#'
+        		if (line.startsWith("#")){
+        			// do nothing, it's a header
+        			continue;
+        		}
+        		
         		String[] splits = line.split(":");
         		String inputName = splits[0];
         		double inputValue = Double.parseDouble(splits[1]);

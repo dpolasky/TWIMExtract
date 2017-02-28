@@ -1,6 +1,8 @@
 package ciugen.imextract;
 
 /**
+ *  * This file is part of TWIMExtract
+ *  
  * Object to store mobility data and header information for writing to file
  * @author Dan
  *

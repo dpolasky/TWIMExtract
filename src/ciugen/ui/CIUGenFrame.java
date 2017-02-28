@@ -33,6 +33,8 @@ import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
 
 /**
+ * This file is part of TWIMExtract 
+ * 
  * TWIMExtract is a general tool for extracting 1 dimensional retention time (RT), drift time (DT) and mass spectral
  * (MZ) datasets from Waters' .raw to text format. This CIUGenFrame object provides user interface and 
  * handles calls to IMExtractRunner and utilities for extracting data using the IMSExtract.exe 
@@ -53,18 +55,54 @@ import javax.swing.table.DefaultTableModel;
  * 
  * If you use TWIMExtract, please cite: Haynes, S.E., Polasky D. A., Majmudar, J. D., Dixit, S. M., Ruotolo, B. T., 
  * Martin, B. R. "Variable-velocity traveling-wave ion mobility separation enhances peak capacity for
- * data-independent acquisition proteomics". Manuscript in preparation"
+ * data-independent acquisition proteomics". Manuscript in preparation
  * 
  * @author Dan Polasky 
- * @author built on framework from Keiran Evans (Waters)
+ * @author Keiran Neeson
  * @version TWIMExtract v1.0
  *
- * Copyright (c) ??????
  *
  */
 public class CIUGenFrame extends javax.swing.JFrame {	
 	
 	private static final String TITLE = "TWIMExtract v1.0";
+
+	/**
+	 * @param args the command line arguments
+	 */
+	public static void main(String args[]) {
+		/* Set the Nimbus look and feel */
+		//<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
+		/* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
+		 * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
+		 */
+		startTime = System.nanoTime();
+		try {
+			for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
+				if ("Nimbus".equals(info.getName())) {
+					javax.swing.UIManager.setLookAndFeel(info.getClassName());
+					break;
+				}
+			}
+		} catch (ClassNotFoundException ex) {
+			java.util.logging.Logger.getLogger(CIUGenFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+		} catch (InstantiationException ex) {
+			java.util.logging.Logger.getLogger(CIUGenFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+		} catch (IllegalAccessException ex) {
+			java.util.logging.Logger.getLogger(CIUGenFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+		} catch (javax.swing.UnsupportedLookAndFeelException ex) {
+			java.util.logging.Logger.getLogger(CIUGenFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+		}
+		//</editor-fold>
+	
+		/* Create and display the form */
+		java.awt.EventQueue.invokeLater(new Runnable() {
+			public void run() {
+				new CIUGenFrame().setVisible(true);
+			}
+		});
+	}
+
 
 	/**
 	 * Creates new form CIUGenFrame GUI
@@ -790,7 +828,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		//Now get the ranges from each range file. Initialize bin numbers FROM RAW FILE info
 		double[] rangesArr = new double[9];
 		String rangeLocation = preferences.getROOT_PATH() + File.separator + "ranges.txt";
-		if (! newRangefileMode){
+		if (newRangefileMode){
 			oldRangesBefore = System.nanoTime();
 			// Call IMExtractRunner to generate a ranges.txt file in the root directory with the full ranges
 			IMExtractRunner.getFullDataRanges(new File(rawPaths.get(0)), 1);
@@ -1265,43 +1303,6 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		}
 		return functions;
 	}
-
-	/**
-	 * @param args the command line arguments
-	 */
-	public static void main(String args[]) {
-		/* Set the Nimbus look and feel */
-		//<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
-		/* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
-		 * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
-		 */
-		startTime = System.nanoTime();
-		try {
-			for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
-				if ("Nimbus".equals(info.getName())) {
-					javax.swing.UIManager.setLookAndFeel(info.getClassName());
-					break;
-				}
-			}
-		} catch (ClassNotFoundException ex) {
-			java.util.logging.Logger.getLogger(CIUGenFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-		} catch (InstantiationException ex) {
-			java.util.logging.Logger.getLogger(CIUGenFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-		} catch (IllegalAccessException ex) {
-			java.util.logging.Logger.getLogger(CIUGenFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-		} catch (javax.swing.UnsupportedLookAndFeelException ex) {
-			java.util.logging.Logger.getLogger(CIUGenFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-		}
-		//</editor-fold>
-
-		/* Create and display the form */
-		java.awt.EventQueue.invokeLater(new Runnable() {
-			public void run() {
-				new CIUGenFrame().setVisible(true);
-			}
-		});
-	}
-
 
 	// timing check globals
 	private static long startTime;

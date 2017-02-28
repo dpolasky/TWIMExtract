@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.FilenameFilter;
 
 /**
+ * This file is part of TWIMExtract
+ *  
  * Filter for rule files (.rul) for rule mode file handling. Accepts only files ending in .rul. 
  * @author dpolasky
  *

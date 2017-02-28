@@ -1,5 +1,9 @@
 package ciugen.ui.utils;
 
+/**
+ *  * This file is part of TWIMExtract
+ */
+
 import java.io.File;
 import java.io.FilenameFilter;
 

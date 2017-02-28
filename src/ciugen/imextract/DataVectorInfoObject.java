@@ -1,6 +1,8 @@
 package ciugen.imextract;
 
 /**
+ *  This file is part of TWIMExtract
+ *  
  * Class to hold all information from the data vector/table used in CIUGEN UI. Each object represents
  * a single analysis (what used to be a single csv file), so each object is one function in MassLynx
  * @author Dan

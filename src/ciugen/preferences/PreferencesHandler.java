@@ -1,5 +1,9 @@
 package ciugen.preferences;
 
+/**
+ * This file is part of TWIMExtract
+ *  
+ */
 import org.xml.sax.Attributes;
 import org.xml.sax.helpers.DefaultHandler;
 

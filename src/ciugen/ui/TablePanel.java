@@ -1,5 +1,10 @@
 package ciugen.ui;
 
+/**
+ * This file is part of TWIMExtract
+ *  
+ */
+
 import java.awt.BorderLayout;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;

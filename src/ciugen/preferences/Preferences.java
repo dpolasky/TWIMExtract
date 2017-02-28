@@ -1,5 +1,9 @@
 package ciugen.preferences;
 
+/**
+ * This file is part of TWIMExtract
+ */
+
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -28,7 +32,8 @@ public class Preferences
   private String ruleDir;
   
   private final String CIUGEN_HOME = "C:\\TWIMExtract";	
-  
+//  private final String CIUGEN_HOME = "C:\\CIUGen";	
+
   private String LIB_PATH;
   private String BIN_PATH;
   private String CONFIG_PATH;
@@ -50,7 +55,7 @@ public class Preferences
     this.BIN_PATH = (this.CIUGEN_HOME + "\\bin");
     this.LIB_PATH = (this.CIUGEN_HOME + "\\lib");
     this.CONFIG_PATH = (this.CIUGEN_HOME + "\\config");
-    this.m_strWorkingDir = System.getProperty("user.home") + "\\Desktop";		//edited - changed to user's desktop
+    this.m_strWorkingDir = System.getProperty("user.home");	
     this.xml = new File(this.CONFIG_PATH + "\\preferences.xml");
     this.ROOT_PATH = (this.CIUGEN_HOME + "\\root");
     this.txtconfig = new File (this.CONFIG_PATH + "\\config.txt");
