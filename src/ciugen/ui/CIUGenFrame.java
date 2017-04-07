@@ -7,6 +7,7 @@ import ciugen.preferences.Preferences;
 import ciugen.ui.utils.RawFileFilter;
 import ciugen.ui.utils.RuleFileFilter;
 import ciugen.ui.utils.TextFileFilter;
+import ciugen.ui.Options;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -65,42 +66,273 @@ import javax.swing.table.DefaultTableModel;
  */
 public class CIUGenFrame extends javax.swing.JFrame {	
 	
-	private static final String TITLE = "TWIMExtract v1.0";
+	private static final String TITLE = "TWIMExtract v1.1";
 
+	
+	private static void print_help(){
+		System.out.println("**********TWIMExtract 1.1 help*********** \n"
+				+ "If you use TWIMExtract, please cite: Haynes, S.E., Polasky D. A., Majmudar, J. D., Dixit, S. M., Ruotolo, B. T., Martin, B. R. \n"
+				+ "'Variable-velocity traveling-wave ion mobility separation enhances peak capacity for data-independent acquisition proteomics'. Manuscript in preparation \n"
+				+ "*****************************************\n"
+				+ "The following inputs are required: \n"
+				+ "-i INPUT: complete system path to the raw data file of interest \n"
+				+ "-o OUTPUT: directory in which to place the output file(s) \n"
+				+ "-m MODE: 0=RT, 1=DT, 2=MZ. Which dimension to preserve when collapsing data \n"
+				+ "Optional arguments: \n"
+				+ "-f FUNCTION: the function number to extract. If not supplied, default is to extract all functions \n"
+				+ "-r RANGE: full system path to the range (or rule) file specifying ranges to extract. If not specified, the full ranges available in the file will be used \n"
+				+ "-rulemode RULEMODE: true or false. Must be true if using a rule file instead of a range file. Default: false \n"
+				+ "-combinemode COMBINEMODE: true or false. If true, multiple outputs from the same raw file (e.g. multiple functions) will be combined into one output file. Default: false");
+	}
+	
+	private static Options parse_args(String args[]){
+		// Combine arg array, since we are parsing on '>' characters instead of spaces (to allow spaces in filenames)
+		String arg_string = "";
+		for (String arg : args){
+			arg_string = arg_string + arg + " ";
+		}
+		String[] arg_splits = arg_string.split(">");
+		
+		String input_path = null;
+		String output_path = null;
+		int extract_mode = -1;
+		int parsed_func = -1;
+		String range_path = null;
+		Boolean rule_mode = false;
+		Boolean combine_mode = false;
+		String ext_string = null;
+		String func_string = "";
+		
+		// Parse args
+		for(int count=0; count < arg_splits.length; count++){
+			// If args[count] matchs a flag, the following entry contains the value for that flag
+			String[] inner_splits = arg_splits[count].split("<");
+			if(arg_splits[count].startsWith("i<")) input_path = inner_splits[1].trim();
+			if(arg_splits[count].startsWith("o<")) output_path = inner_splits[1].trim();
+			if(arg_splits[count].startsWith("m<")) ext_string = inner_splits[1].trim();
+			if(arg_splits[count].startsWith("f<")) func_string = inner_splits[1].trim();
+			if(arg_splits[count].startsWith("r<")) range_path = inner_splits[1].trim();
+			if(arg_splits[count].startsWith("rulemode<")) rule_mode = Boolean.parseBoolean(inner_splits[1].trim());
+			if(arg_splits[count].startsWith("combinemode<")) combine_mode = Boolean.parseBoolean(inner_splits[1].trim());
+			if(arg_splits[count].startsWith("h")){
+				print_help();
+				System.exit(0);
+			}
+		}
+		// Parse non-strings and handle exceptions
+		try{
+			extract_mode = Integer.parseInt(ext_string.trim());
+		} catch (NumberFormatException ex){
+			System.out.println("Invalid mode entered. Must enter 0 (RT), 1 (DT), or 2 (MZ) for mode");
+			System.exit(1);
+		}
+		try{
+			parsed_func = Integer.parseInt(func_string);
+		} catch (NullPointerException ex){
+			// No function passed, do nothing (-1 default value will be used to indicate reading all functions)
+		} catch (NumberFormatException ex2){
+			System.out.println("Invalid function entered. Must be an integer. Reading all functions instead");
+		}
+		
+		
+		// Make sure all required arguments are present
+		if (input_path == null || output_path == null || extract_mode == -1){
+			System.out.println("Not all required arguments passed! Must have -i, -o, and -m. See -h for help");
+			System.exit(1);
+		}
+		// Set range to 'FULL' if it is currently null, to specify passing the entire range available
+		if (range_path == null){
+			range_path = "FULL";
+		}
+		
+		Options options = new Options(input_path, output_path, range_path, extract_mode, parsed_func, rule_mode, combine_mode);
+//		options.print_options();
+		return options;
+	}
+	
+	/*
+	 * Method to run extractor from command line. Roughly duplicates the 'combinedLoopHelper'
+	 * method, but couldn't be easily combined due to the structure of the GUI (which uses
+	 * the actual GUI elements to store information, and thus can't be used outside the GUI). 
+	 * Have plans to fix eventually.
+	 */
+	private static void run_command_args(String[] args){
+		// Parse args, returning options object containing extract information
+		Options arg_opts = parse_args(args);
+
+		// Get basic file and range information
+		File rawFile = new File(arg_opts.input);
+		String rawPath = null;
+		try { rawPath = rawFile.getCanonicalPath();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		String rawName = rawFile.getName();
+		String rangeName = "FULL";
+		try{
+			File rangeFile = new File(arg_opts.range);
+			rangeName = rangeFile.getName();
+		} catch (NullPointerException ex){}
+
+		// Get necessary function info for the given raw path
+		Vector<String> functions = getAllFunctionInfo(rawPath);
+		ArrayList<DataVectorInfoObject> allfuncs = new ArrayList<DataVectorInfoObject>();
+
+		// Use default infotypes for now - might add options for them later
+		// types: coneCV, trapCV, transfCV, WV, WH
+		boolean[] infoTypes = {false, true , false, false, false};
+
+		// initialize extractor
+		IMExtractRunner imextractRunner = IMExtractRunner.getInstance();
+		
+		// Read desired function OR all functions if no func specified into a DataVector
+		if (arg_opts.function == -1){
+			// No function specified; read all functions
+			for(String function : functions ){
+				DataVectorInfoObject functionInfo = makeFunctionInfo(function, arg_opts, rawFile, rawPath,
+						rawName, rangeName, infoTypes);
+				allfuncs.add(functionInfo);
+			}
+		} else {
+			// Read only specified function
+			String desired_func = functions.get(arg_opts.function - 1);
+			DataVectorInfoObject functionInfo = makeFunctionInfo(desired_func, arg_opts, rawFile, rawPath,
+					rawName, rangeName, infoTypes);
+			allfuncs.add(functionInfo);
+		}
+		
+		
+		// Get mode name
+		String extr_mode_name = "";
+		if (arg_opts.mode == IMExtractRunner.DT_MODE){
+			extr_mode_name = "DT";
+		} else if(arg_opts.mode == IMExtractRunner.MZ_MODE){
+			extr_mode_name = "MZ";
+		} else if(arg_opts.mode == IMExtractRunner.RT_MODE){
+			extr_mode_name = "RT";
+		}
+
+		// All info has been gathered, so run the extractor
+		if (! arg_opts.combineMode){
+			// Pass a new list with only one function's info to the extractor
+			for (DataVectorInfoObject functionInfo : allfuncs){
+				ArrayList<DataVectorInfoObject> singleFunctionVector = new ArrayList<DataVectorInfoObject>();
+				singleFunctionVector.add(functionInfo);
+
+				// Make output directory folder to save files into if needed		
+//				File outputDir = new File(arg_opts.output + File.separator + rawName);
+				File outputDir = new File(arg_opts.output);
+				if (!outputDir.exists()){
+					outputDir.mkdirs();
+				}
+				String csvOutName = outputDir + File.separator + extr_mode_name +  "_" + rawName + "_fn-" + functionInfo.getFunction() + "_#" + rangeName + "_raw.csv";						
+
+				// Prep rule file if in rule mode:
+				File ruleFile = null;
+				if (arg_opts.ruleMode){
+					ruleFile = new File(arg_opts.range);
+				}
+
+				// Call the extractor
+				imextractRunner.extractMobiligramOneFile(singleFunctionVector, csvOutName, arg_opts.ruleMode, ruleFile, arg_opts.mode);
+			} 
+
+		} else {
+			// Combined mode, so pass all info at once
+//			File outputDir = new File(arg_opts.output + File.separator + rawName);
+			File outputDir = new File(arg_opts.output);
+			if (!outputDir.exists()){
+				outputDir.mkdirs();
+			}
+			String csvOutName = outputDir + File.separator + extr_mode_name +  "_" + rawName  +  "_#" + rangeName  + "_raw.csv";						
+
+			// Prep rule file if in rule mode:
+			File ruleFile = null;
+			if (arg_opts.ruleMode){
+				ruleFile = new File(arg_opts.range);
+			}
+
+			// Call the extractor
+			imextractRunner.extractMobiligramOneFile(allfuncs, csvOutName, arg_opts.ruleMode, ruleFile, arg_opts.mode);
+
+		}
+		System.out.println("Done!");
+	}
+	
+	/*
+	 * Helper method to assemble all function information into a DataVectorInfoObject. Handles
+	 * both specified and unspecified range files from argument Options
+	 */
+	private static DataVectorInfoObject makeFunctionInfo(String function, Options arg_opts, File rawFile, String rawPath, 
+			String rawName, String rangeName, boolean[] infoTypes){
+		String[] splits = function.split(",");
+
+		// Read range info from file, or get full ranges from raw file if no range specified
+		double[] rangesArr = new double[9];
+		if (arg_opts.range == "FULL"){
+			// No range file was specified, so use the full data ranges available for this function
+			IMExtractRunner.getFullDataRanges(rawFile, Integer.parseInt(splits[FN_SPLITS]));
+			String rangeLocation = preferences.getROOT_PATH() + File.separator + "ranges.txt";
+			rangesArr = IMExtractRunner.readDataRangesOld(rangeLocation);
+		} else {
+			// Read the specified range file
+			rangesArr = IMExtractRunner.readDataRanges(arg_opts.range, rangesArr);
+		}
+
+		DataVectorInfoObject functionInfo = new DataVectorInfoObject(rawPath, rawName, 
+				Integer.parseInt(splits[FN_SPLITS]),
+				Boolean.parseBoolean(splits[SELECTED_SPLITS]),Double.parseDouble(splits[CONECV_SPLITS]),
+				Double.parseDouble(splits[TRAPCV_SPLITS]), Double.parseDouble(splits[TRANSFCV_SPLITS]),
+				Double.parseDouble(splits[WH_SPLITS]),Double.parseDouble(splits[WV_SPLITS]),
+				rangesArr,rangeName,infoTypes);
+		
+		return functionInfo;
+	}
+	
 	/**
 	 * @param args the command line arguments
 	 */
 	public static void main(String args[]) {
-		/* Set the Nimbus look and feel */
-		//<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
-		/* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
-		 * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
-		 */
-		startTime = System.nanoTime();
-		try {
-			for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
-				if ("Nimbus".equals(info.getName())) {
-					javax.swing.UIManager.setLookAndFeel(info.getClassName());
-					break;
+		
+		// Command line args: if present, parse and run. Otherwise, run the GUI
+		if (! (args.length == 0)){
+			run_command_args(args);
+
+		} else {
+			// no command line args, so run the GUI
+			
+			/* Set the Nimbus look and feel */
+			//<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
+			/* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
+			 * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
+			 */
+			startTime = System.nanoTime();
+			try {
+				for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {
+					if ("Nimbus".equals(info.getName())) {
+						javax.swing.UIManager.setLookAndFeel(info.getClassName());
+						break;
+					}
 				}
+			} catch (ClassNotFoundException ex) {
+				java.util.logging.Logger.getLogger(CIUGenFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+			} catch (InstantiationException ex) {
+				java.util.logging.Logger.getLogger(CIUGenFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+			} catch (IllegalAccessException ex) {
+				java.util.logging.Logger.getLogger(CIUGenFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+			} catch (javax.swing.UnsupportedLookAndFeelException ex) {
+				java.util.logging.Logger.getLogger(CIUGenFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
 			}
-		} catch (ClassNotFoundException ex) {
-			java.util.logging.Logger.getLogger(CIUGenFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-		} catch (InstantiationException ex) {
-			java.util.logging.Logger.getLogger(CIUGenFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-		} catch (IllegalAccessException ex) {
-			java.util.logging.Logger.getLogger(CIUGenFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
-		} catch (javax.swing.UnsupportedLookAndFeelException ex) {
-			java.util.logging.Logger.getLogger(CIUGenFrame.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+			//</editor-fold>
+		
+			/* Create and display the form */
+			java.awt.EventQueue.invokeLater(new Runnable() {
+				public void run() {
+					new CIUGenFrame().setVisible(true);
+				}
+			});
 		}
-		//</editor-fold>
-	
-		/* Create and display the form */
-		java.awt.EventQueue.invokeLater(new Runnable() {
-			public void run() {
-				new CIUGenFrame().setVisible(true);
-			}
-		});
+
 	}
 
 
