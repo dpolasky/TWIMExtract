@@ -60,7 +60,7 @@ import javax.swing.table.DefaultTableModel;
  * 
  * @author Dan Polasky 
  * @author Keiran Neeson
- * @version TWIMExtract v1.0
+ * @version TWIMExtract v1.1
  *
  *
  */

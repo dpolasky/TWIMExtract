@@ -13,6 +13,7 @@ import java.nio.ByteOrder;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -699,7 +700,16 @@ public class IMExtractRunner {
 	    	specPath = generateMZ(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], ruleMode, null);
 		}
 	
-	    double[][] data = getTraceData(specPath, MZ_MODE);
+	    double[][] data = getTraceData(specPath, MZ_MODE, rangeValues);
+	    
+	    // trim data to only includes range specified (by default, IMSExtract writes full m/z range, even if empty)
+//	    double mz_low = rangeValues[START_MZ];
+//	    double mz_high = rangeValues[STOP_MZ];
+//	    
+//	    int start_index = java.util.Arrays.binarySearch(data[0], mz_low);
+//	    int end_index = java.util.Arrays.binarySearch(data[0], mz_high);
+//	    
+//	    double[][] final_data = Arrays.copyOfRange(data, start_index, end_index);
 	    
 	    return data;
 	}
@@ -739,7 +749,7 @@ public class IMExtractRunner {
 	    	specPath = generateRT(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], ruleMode, null);
 		}
 	
-	    double[][] data = getTraceData(specPath, RT_MODE);
+	    double[][] data = getTraceData(specPath, RT_MODE, rangeValues);
 	    
 	    return data;
 	}
@@ -779,7 +789,7 @@ public class IMExtractRunner {
 			specPath = generateDT(replicateID, rawFile, nfunction, rangeValues[IMExtractRunner.START_MZ], rangeValues[IMExtractRunner.STOP_MZ], rangeValues[IMExtractRunner.START_RT], rangeValues[IMExtractRunner.STOP_RT], rangeValues[IMExtractRunner.START_DT], rangeValues[IMExtractRunner.STOP_DT], (int)rangeValues[IMExtractRunner.DT_BINS], ruleMode, null);
 		}
 	
-		double[][] data = getTraceData(specPath, DT_MODE);
+		double[][] data = getTraceData(specPath, DT_MODE, rangeValues);
 		return data;
 	}
 
@@ -1052,7 +1062,7 @@ public class IMExtractRunner {
     
 
 
-    private synchronized static double[][] getTraceData(String path, int nType) throws FileNotFoundException, IOException
+    private synchronized static double[][] getTraceData(String path, int nType, double[] rangeVals) throws FileNotFoundException, IOException
     {
         // Open the binary file as channel
         File binFile = new File(path);
@@ -1071,11 +1081,7 @@ public class IMExtractRunner {
         MappedByteBuffer nMbb = null;
         
         //Read number of mass channels
-        if( nMbb != null )
-        {
-            nMbb.clear();
-        }
-          
+
         nMbb = channel.map(FileChannel.MapMode.READ_ONLY,0L,binFile.length());
         nMbb = nMbb.load();
         nMbb.order(ByteOrder.LITTLE_ENDIAN);
@@ -1093,13 +1099,7 @@ public class IMExtractRunner {
         	nBins = 0;
         }
         catch(java.nio.BufferUnderflowException ex){
-//        	System.out.println("\n" + "**ERROR: Could not process data**" + "\n"
-//        			+ "Something is wrong with the range file used. "
-//        			+ "\n" + "Try increasing the RT window, Make sure DT bins is 200, "
-//        			+ "and make sure your mass ranges are correct."
-//        			);
-//        	System.out.println("Buffer under flow error - problem with data processing for " + path);
-//        	System.exit(0);
+        	ex.printStackTrace();
         }
         
         if( nType == RT_MODE )
@@ -1115,27 +1115,44 @@ public class IMExtractRunner {
             nBins = nMZBins;
         }
         
-        // Generate our storage and reset highest number of counts
-        data = new double[nBins][2];
-        int nHighestCounts = 0;
-        
-        // Load the data into our point array
-        for( int nZ = 0; nZ < nBins; nZ++)
-        {
-            float fX = NumberUtils.roundNumber(nMbb.getFloat(), 3);
-            int nCount = nMbb.getInt();
-            if( nCount < 0 )
-            {
-                //_log.writeMessage("Warning -ve counts " + nCount);
-            }
-            else 
-            {
-                data[nZ] = new double[]{fX, nCount};
-                if( nCount > nHighestCounts ) 
-                {
-                    nHighestCounts = nCount;
-                }
-            }
+        // Generate our storage
+        if (nType == MZ_MODE){
+        	// Load only the data within the specified m/z range into our point array
+        	ArrayList<double[]> small_data = new ArrayList<double[]>();
+	        for( int nZ = 0; nZ < nBins; nZ++)
+	        {
+	            float fX = NumberUtils.roundNumber(nMbb.getFloat(), 3);
+	            int nCount = nMbb.getInt();
+	            if( nCount < 0 ){
+	                //_log.writeMessage("Warning -ve counts " + nCount);
+	            }
+	            else {
+	            	// Only add this value to the data array if it's in the desired range
+	            	if (fX > rangeVals[START_MZ] && fX < rangeVals[STOP_MZ]){
+	            		small_data.add(new double[]{fX, nCount});
+//	            		data[nZ] = new double[]{fX, nCount}; 
+	            	}
+	            }
+	        }
+	        // Once data is loaded, return as an array of the correct size
+	        double[][] data_size = new double[small_data.size()][2];
+	        data = small_data.toArray(data_size);
+	        
+        } else {
+        	data = new double[nBins][2];
+        	
+	        // Load all the data into our point array for DT and RT modes
+	        for( int nZ = 0; nZ < nBins; nZ++)
+	        {
+	            float fX = NumberUtils.roundNumber(nMbb.getFloat(), 3);
+	            int nCount = nMbb.getInt();
+	            if( nCount < 0 ){
+	                //_log.writeMessage("Warning -ve counts " + nCount);
+	            }
+	            else {
+	                data[nZ] = new double[]{fX, nCount}; 
+	            }
+	        }
         }
         
         channel.close();
