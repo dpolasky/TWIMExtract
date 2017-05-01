@@ -1,11 +1,26 @@
 # TWIMExtract
 
+TWIMExtract is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+TWIMExtract is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with TWIMExtract.  If not, see <http://www.gnu.org/licenses/>.
+
+Authors : Daniel Polasky (dpolasky@umich.edu) and Kieran Neeson (Waters)
+
 ********************************************************************************
 TWIMExtract User Guide
 
 **If you use TWIMExtract, please cite:**
 
-Haynes, S.E., Polasky D. A., Majmudar, J. D., Dixit, S. M., Ruotolo, B. T., 
+Haynes, S.E., Polasky D. A., Dixit, S. M., Majmudar, J. D., Neeson, K., Ruotolo, B. T., 
 Martin, B. R. "Variable-velocity traveling-wave ion mobility separation enhances peak capacity for
 data-independent acquisition proteomics". Manuscript in review
 
