@@ -86,6 +86,71 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	}
 	
 	private static Options parse_args(String args[]){
+		String input_path = null;
+		String output_path = null;
+		int extract_mode = -1;
+		int parsed_func = -1;
+		String range_path = null;
+		Boolean rule_mode = false;
+		Boolean combine_mode = false;
+		String ext_string = null;
+		String func_string = "";
+
+		// Parse args
+		for(int count=0; count < args.length; count++){
+			// If args[count] matchs a flag, the following arg contains the value for that flag
+			if(args[count].equals("-i")) input_path = args[++count];
+			if(args[count].equals("-o")) output_path = args[++count];
+			if(args[count].equals("-m")) ext_string = args[++count];
+			if(args[count].equals("-r")) range_path = args[++count];
+			if(args[count].equals("-f")) func_string = args[++count];
+			if(args[count].equals("-rulemode")) rule_mode = Boolean.parseBoolean(args[++count]);
+			if(args[count].equals("-combinemode")) combine_mode = Boolean.parseBoolean(args[++count]);
+			if(args[count].equals("-h")){
+				print_help();
+				System.exit(0);
+			}
+
+			if (count % 2 == 0){
+				// Even numbered args must start with '-' for the flag
+				if (! args[count].startsWith("-")){
+					System.out.println("Invalid arg syntax: " + args[count] + "\n Args must start with '-");
+				}
+			}
+		}
+
+		// Parse non-strings and handle exceptions
+		try{
+			extract_mode = Integer.parseInt(ext_string.trim());
+		} catch (NumberFormatException ex){
+			System.out.println("Invalid mode entered. Must enter 0 (RT), 1 (DT), or 2 (MZ) for mode");
+			System.exit(1);
+		}
+		try{
+			parsed_func = Integer.parseInt(func_string);
+		} catch (NullPointerException ex){
+			// No function passed, do nothing (-1 default value will be used to indicate reading all functions)
+		} catch (NumberFormatException ex2){
+			System.out.println("Invalid function entered. Must be an integer. Reading all functions instead");
+		}
+
+
+		// Make sure all required arguments are present
+		if (input_path == null || output_path == null || extract_mode == -1){
+			System.out.println("Not all required arguments passed! Must have -i, -o, and -m. See -h for help");
+			System.exit(1);
+		}
+		// Set range to 'FULL' if it is currently null, to specify passing the entire range available
+		if (range_path == null){
+			range_path = "FULL";
+		}
+
+		Options options = new Options(input_path, output_path, range_path, extract_mode, parsed_func, rule_mode, combine_mode);
+//		options.print_options();
+		return options;
+	}
+	
+	private static Options parse_args_old(String args[]){
 		// Combine arg array, since we are parsing on '>' characters instead of spaces (to allow spaces in filenames)
 		String arg_string = "";
 		for (String arg : args){
@@ -166,6 +231,8 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		try { rawPath = rawFile.getCanonicalPath();
 		} catch (IOException e) {
 			e.printStackTrace();
+			System.out.println("Could not find file " + rawFile.toString() + " Please check the file and try again");
+			System.exit(1);
 		}
 		String rawName = rawFile.getName();
 		String rangeName = "FULL";

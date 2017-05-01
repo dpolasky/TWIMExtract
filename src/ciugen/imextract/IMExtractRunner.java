@@ -451,12 +451,21 @@ public class IMExtractRunner {
 		// ADD HEADER INFORMATION AND BIN NUMBERS TO THE LINES
 		int lineIndex = 0;
 		try {
-			// Mobdata is not empty, so write its contents to the array
-			for (int i = HEADER_LENGTH; i < allMobData.get(0).getMobdata().length + HEADER_LENGTH; i++){
-				lines.add(String.valueOf(allMobData.get(0).getMobdata()[lineIndex][0]));
-				lineIndex++;
+			// handle writing bin numbers if there's no data in the first file
+			if (allMobData.get(0).getMobdata().length == 0){
+				for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
+					lines.add(String.valueOf(i - HEADER_LENGTH + 1));
+					lineIndex++;
+				}
+			} else {
+				// Mobdata is not empty, so write its contents to the array
+				for (int i = HEADER_LENGTH; i < allMobData.get(0).getMobdata().length + HEADER_LENGTH; i++){
+					lines.add(String.valueOf(allMobData.get(0).getMobdata()[lineIndex][0]));
+					lineIndex++;
+				}
 			}
 		} catch (NullPointerException ex){
+			// mobdata is null - add default header
 			for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){
 				lines.add(String.valueOf(i - HEADER_LENGTH + 1));
 				lineIndex++;
@@ -528,6 +537,7 @@ public class IMExtractRunner {
 						"(Array index error) " + data.getRawFileName() + ", range File " + data.getRangeName()
 						+ "\n" + "Writing all 0's for this range");
 				for (int i = HEADER_LENGTH; i < allMobData.get(0).getMobdata().length + HEADER_LENGTH; i++){	
+//				for (int i = HEADER_LENGTH; i < 200 + HEADER_LENGTH; i++){	
 					arraylines[i] = arraylines[i] + "," + "0";
 					lineIndex++;
 				}
