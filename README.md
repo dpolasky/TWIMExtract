@@ -1,5 +1,11 @@
 # TWIMExtract
 
+**If you use TWIMExtract, please cite:**
+
+Haynes, S.E., Polasky D. A., Dixit, S. M., Majmudar, J. D., Neeson, K., Ruotolo, B. T., 
+Martin, B. R. "Variable-velocity traveling-wave ion mobility separation enhances peak capacity for
+data-independent acquisition proteomics". Manuscript in review
+
 TWIMExtract is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
@@ -17,13 +23,6 @@ Authors : Daniel Polasky (dpolasky@umich.edu) and Kieran Neeson (Waters)
 
 ********************************************************************************
 TWIMExtract User Guide
-
-**If you use TWIMExtract, please cite:**
-
-Haynes, S.E., Polasky D. A., Dixit, S. M., Majmudar, J. D., Neeson, K., Ruotolo, B. T., 
-Martin, B. R. "Variable-velocity traveling-wave ion mobility separation enhances peak capacity for
-data-independent acquisition proteomics". Manuscript in review
-
 ********************************************************************************
 
 Setup:
