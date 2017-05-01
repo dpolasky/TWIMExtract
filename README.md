@@ -1,12 +1,29 @@
 # TWIMExtract
 
+TWIMExtract is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+TWIMExtract is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with TWIMExtract.  If not, see <http://www.gnu.org/licenses/>.
+
+Authors : Daniel Polasky (dpolasky@umich.edu) and Kieran Neeson (Waters)
+
 ********************************************************************************
 TWIMExtract User Guide
 
-If you use TWIMExtract, please cite:
-Haynes, S.E., Polasky D. A., Majmudar, J. D., Dixit, S. M., Ruotolo, B. T., 
+**If you use TWIMExtract, please cite:**
+
+Haynes, S.E., Polasky D. A., Dixit, S. M., Majmudar, J. D., Neeson, K., Ruotolo, B. T., 
 Martin, B. R. "Variable-velocity traveling-wave ion mobility separation enhances peak capacity for
-data-independent acquisition proteomics". Manuscript in preparation
+data-independent acquisition proteomics". Manuscript in review
+
 ********************************************************************************
 
 Setup:
@@ -83,3 +100,29 @@ Advanced/Other modes:
 		resolution. 
 		- Careful mode gets the number of bins individually for each function to avoid resolution losses, but is slower
 		than normal mode as a result.  
+
+	- Command line arguments: can be used for scripting with TWIMExtract. 
+		General use: java -jar TWIMExtract.jar [ARGS]
+		Help: java -jar TWIMExtract.jar -h
+		
+		NOTE: directories must be in quotes ("") if they contain spaces or other special characters
+		Arguments:
+			Required:
+			-i "[input directory]" : The full system path to the .raw file from which to extract
+			-o "[output directory]" : The full system path to the folder in which to save output
+			-m [mode] : the extraction mode (the dimension of data to save). 0 = RT, 1 = DT, 2 = MZ
+			Optional:
+			-f [func] : the individual function to extract. If not provided, extracts all functions
+			-r "[Range path]" : The full system path to a range (.txt) or rule (.rul) file to use
+				for extraction. If not provided, extracts the full ranges in all dimensions
+			-rulemode [true or false] : Whether to use range or rule file. 
+			-combinemode [true or false] : Whether to combine all outputs from a single raw file
+				(e.g. multiple functions) into a single output. 
+
+		Example: The command below would extract DT information from all functions from the 
+		"My_data.raw" file using the "my_range.txt" range file, combine the output, and place it 
+		in C:\Extracted Data:
+
+		java -jar TWIMExtract.jar -i "C:\Data\My_data.raw" -o "C:\Extracted Data" -m 1 
+			-r "C:\Ranges\my_range.txt" -rulemode false -combinemode true
+
