@@ -41,36 +41,41 @@ import javax.swing.table.DefaultTableModel;
  * handles calls to IMExtractRunner and utilities for extracting data using the IMSExtract.exe 
  * executable from Waters with appropriate settings. Please refer to the user manual for more information.
  * 
- * TWIMExtract is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * TWIMExtract is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with TWIMExtract.  If not, see <http://www.gnu.org/licenses/>.
+ * License information: (BSD)
+   Copyright 2016 Daniel Polasky
+
+	Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+	
+	1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+	
+	2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+	
+	3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+	
+	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, 
+	THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS 
+	BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE 
+	GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, 
+	OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * 
- * If you use TWIMExtract, please cite: Haynes, S.E., Polasky D. A., Majmudar, J. D., Dixit, S. M., Ruotolo, B. T., 
- * Martin, B. R. "Variable-velocity traveling-wave ion mobility separation enhances peak capacity for
- * data-independent acquisition proteomics". Manuscript in preparation
+ * IF YOU USE TWIMEXTRACT, PLEASE CITE: Haynes, S. E.; Polasky, D. A.; Dixit, S. M.; Majmudar, J. D.; Neeson, K.; Ruotolo, B. T.; Martin, B. R. 
+ * "Variable-Velocity Traveling-Wave Ion Mobility Separation Enhancing Peak Capacity for Data-Independent 
+ * Acquisition Proteomics". Anal. Chem. 2017, acs.analchem.7b00112.
  * 
- * @author Dan Polasky 
+ * 
+ * @author Daniel Polasky 
  * @author Keiran Neeson
- * @version TWIMExtract v1.1
+ * @version TWIMExtract v1.2
  *
  *
  */
 public class CIUGenFrame extends javax.swing.JFrame {	
 	
-	private static final String TITLE = "TWIMExtract v1.1";
+	private static final String TITLE = "TWIMExtract v1.2";
 
 	
 	private static void print_help(){
-		System.out.println("**********TWIMExtract 1.1 help*********** \n"
+		System.out.println("**********TWIMExtract 1.2 help*********** \n"
 				+ "If you use TWIMExtract, please cite: Haynes, S.E., Polasky D. A., Majmudar, J. D., Dixit, S. M., Ruotolo, B. T., Martin, B. R. \n"
 				+ "'Variable-velocity traveling-wave ion mobility separation enhances peak capacity for data-independent acquisition proteomics'. Manuscript in preparation \n"
 				+ "*****************************************\n"
@@ -82,7 +87,8 @@ public class CIUGenFrame extends javax.swing.JFrame {
 				+ "-f FUNCTION: the function number to extract. If not supplied, default is to extract all functions \n"
 				+ "-r RANGE: full system path to the range (or rule) file specifying ranges to extract. If not specified, the full ranges available in the file will be used \n"
 				+ "-rulemode RULEMODE: true or false. Must be true if using a rule file instead of a range file. Default: false \n"
-				+ "-combinemode COMBINEMODE: true or false. If true, multiple outputs from the same raw file (e.g. multiple functions) will be combined into one output file. Default: false");
+				+ "-combinemode COMBINEMODE: true or false. If true, multiple outputs from the same raw file (e.g. multiple functions) will be combined into one output file. Default: false \n"
+				+ "-ms DT_EXTRACTMODE: true or false. DT extractions will be saved in milliseconds if true and bins if false. Default = true");
 	}
 	
 	private static Options parse_args(String args[]){
@@ -94,6 +100,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		Boolean rule_mode = false;
 		Boolean combine_mode = false;
 		String ext_string = null;
+		Boolean extract_in_ms_args = true;
 		String func_string = "";
 
 		// Parse args
@@ -106,6 +113,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			if(args[count].equals("-f")) func_string = args[++count];
 			if(args[count].equals("-rulemode")) rule_mode = Boolean.parseBoolean(args[++count]);
 			if(args[count].equals("-combinemode")) combine_mode = Boolean.parseBoolean(args[++count]);
+			if(args[count].equals("-ms")) extract_in_ms_args = Boolean.parseBoolean(args[++count]);
 			if(args[count].equals("-h")){
 				print_help();
 				System.exit(0);
@@ -145,75 +153,75 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			range_path = "FULL";
 		}
 
-		Options options = new Options(input_path, output_path, range_path, extract_mode, parsed_func, rule_mode, combine_mode);
+		Options options = new Options(input_path, output_path, range_path, extract_mode, parsed_func, rule_mode, combine_mode, extract_in_ms_args);
 //		options.print_options();
 		return options;
 	}
 	
-	private static Options parse_args_old(String args[]){
-		// Combine arg array, since we are parsing on '>' characters instead of spaces (to allow spaces in filenames)
-		String arg_string = "";
-		for (String arg : args){
-			arg_string = arg_string + arg + " ";
-		}
-		String[] arg_splits = arg_string.split(">");
-		
-		String input_path = null;
-		String output_path = null;
-		int extract_mode = -1;
-		int parsed_func = -1;
-		String range_path = null;
-		Boolean rule_mode = false;
-		Boolean combine_mode = false;
-		String ext_string = null;
-		String func_string = "";
-		
-		// Parse args
-		for(int count=0; count < arg_splits.length; count++){
-			// If args[count] matchs a flag, the following entry contains the value for that flag
-			String[] inner_splits = arg_splits[count].split("<");
-			if(arg_splits[count].startsWith("i<")) input_path = inner_splits[1].trim();
-			if(arg_splits[count].startsWith("o<")) output_path = inner_splits[1].trim();
-			if(arg_splits[count].startsWith("m<")) ext_string = inner_splits[1].trim();
-			if(arg_splits[count].startsWith("f<")) func_string = inner_splits[1].trim();
-			if(arg_splits[count].startsWith("r<")) range_path = inner_splits[1].trim();
-			if(arg_splits[count].startsWith("rulemode<")) rule_mode = Boolean.parseBoolean(inner_splits[1].trim());
-			if(arg_splits[count].startsWith("combinemode<")) combine_mode = Boolean.parseBoolean(inner_splits[1].trim());
-			if(arg_splits[count].startsWith("h")){
-				print_help();
-				System.exit(0);
-			}
-		}
-		// Parse non-strings and handle exceptions
-		try{
-			extract_mode = Integer.parseInt(ext_string.trim());
-		} catch (NumberFormatException ex){
-			System.out.println("Invalid mode entered. Must enter 0 (RT), 1 (DT), or 2 (MZ) for mode");
-			System.exit(1);
-		}
-		try{
-			parsed_func = Integer.parseInt(func_string);
-		} catch (NullPointerException ex){
-			// No function passed, do nothing (-1 default value will be used to indicate reading all functions)
-		} catch (NumberFormatException ex2){
-			System.out.println("Invalid function entered. Must be an integer. Reading all functions instead");
-		}
-		
-		
-		// Make sure all required arguments are present
-		if (input_path == null || output_path == null || extract_mode == -1){
-			System.out.println("Not all required arguments passed! Must have -i, -o, and -m. See -h for help");
-			System.exit(1);
-		}
-		// Set range to 'FULL' if it is currently null, to specify passing the entire range available
-		if (range_path == null){
-			range_path = "FULL";
-		}
-		
-		Options options = new Options(input_path, output_path, range_path, extract_mode, parsed_func, rule_mode, combine_mode);
-//		options.print_options();
-		return options;
-	}
+//	private static Options parse_args_old(String args[]){
+//		// Combine arg array, since we are parsing on '>' characters instead of spaces (to allow spaces in filenames)
+//		String arg_string = "";
+//		for (String arg : args){
+//			arg_string = arg_string + arg + " ";
+//		}
+//		String[] arg_splits = arg_string.split(">");
+//		
+//		String input_path = null;
+//		String output_path = null;
+//		int extract_mode = -1;
+//		int parsed_func = -1;
+//		String range_path = null;
+//		Boolean rule_mode = false;
+//		Boolean combine_mode = false;
+//		String ext_string = null;
+//		String func_string = "";
+//		
+//		// Parse args
+//		for(int count=0; count < arg_splits.length; count++){
+//			// If args[count] matchs a flag, the following entry contains the value for that flag
+//			String[] inner_splits = arg_splits[count].split("<");
+//			if(arg_splits[count].startsWith("i<")) input_path = inner_splits[1].trim();
+//			if(arg_splits[count].startsWith("o<")) output_path = inner_splits[1].trim();
+//			if(arg_splits[count].startsWith("m<")) ext_string = inner_splits[1].trim();
+//			if(arg_splits[count].startsWith("f<")) func_string = inner_splits[1].trim();
+//			if(arg_splits[count].startsWith("r<")) range_path = inner_splits[1].trim();
+//			if(arg_splits[count].startsWith("rulemode<")) rule_mode = Boolean.parseBoolean(inner_splits[1].trim());
+//			if(arg_splits[count].startsWith("combinemode<")) combine_mode = Boolean.parseBoolean(inner_splits[1].trim());
+//			if(arg_splits[count].startsWith("h")){
+//				print_help();
+//				System.exit(0);
+//			}
+//		}
+//		// Parse non-strings and handle exceptions
+//		try{
+//			extract_mode = Integer.parseInt(ext_string.trim());
+//		} catch (NumberFormatException ex){
+//			System.out.println("Invalid mode entered. Must enter 0 (RT), 1 (DT), or 2 (MZ) for mode");
+//			System.exit(1);
+//		}
+//		try{
+//			parsed_func = Integer.parseInt(func_string);
+//		} catch (NullPointerException ex){
+//			// No function passed, do nothing (-1 default value will be used to indicate reading all functions)
+//		} catch (NumberFormatException ex2){
+//			System.out.println("Invalid function entered. Must be an integer. Reading all functions instead");
+//		}
+//		
+//		
+//		// Make sure all required arguments are present
+//		if (input_path == null || output_path == null || extract_mode == -1){
+//			System.out.println("Not all required arguments passed! Must have -i, -o, and -m. See -h for help");
+//			System.exit(1);
+//		}
+//		// Set range to 'FULL' if it is currently null, to specify passing the entire range available
+//		if (range_path == null){
+//			range_path = "FULL";
+//		}
+//		
+//		Options options = new Options(input_path, output_path, range_path, extract_mode, parsed_func, rule_mode, combine_mode);
+////		options.print_options();
+//		return options;
+//	}
 	
 	/*
 	 * Method to run extractor from command line. Roughly duplicates the 'combinedLoopHelper'
@@ -301,7 +309,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 				}
 
 				// Call the extractor
-				imextractRunner.extractMobiligramOneFile(singleFunctionVector, csvOutName, arg_opts.ruleMode, ruleFile, arg_opts.mode);
+				imextractRunner.extractMobiligramOneFile(singleFunctionVector, csvOutName, arg_opts.ruleMode, ruleFile, arg_opts.mode, arg_opts.extract_in_ms);
 			} 
 
 		} else {
@@ -320,7 +328,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			}
 
 			// Call the extractor
-			imextractRunner.extractMobiligramOneFile(allfuncs, csvOutName, arg_opts.ruleMode, ruleFile, arg_opts.mode);
+			imextractRunner.extractMobiligramOneFile(allfuncs, csvOutName, arg_opts.ruleMode, ruleFile, arg_opts.mode, arg_opts.extract_in_ms);
 
 		}
 		System.out.println("Done!");
@@ -521,6 +529,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 
 		// jPanel 3:
 		jPanel3.setLayout(new java.awt.BorderLayout());
+//		jLabel2.setText("<html>Choose an Extraction Mode to run:<br>To extract DT in ms, see options menu</html>");
 		jLabel2.setText("Choose an Extraction Mode to run:");
 		jPanel3.add(jLabel2, java.awt.BorderLayout.WEST);
 
@@ -621,8 +630,11 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		toggleRulesItem.addActionListener(menuActionListener);
 		toggleCombineItem = new JMenuItem("Toggle Combined or Individual outputs");
 		toggleCombineItem.addActionListener(menuActionListener);
+		dtBinModeItem = new JMenuItem("Toggle DT extraction in ms/bins");
+		dtBinModeItem.addActionListener(menuActionListener);
 		optionMenu.add(toggleRulesItem);
 		optionMenu.add(toggleCombineItem);
+		optionMenu.add(dtBinModeItem);
 		optionMenu.add(printRangeOptionItem);
 
 		fastModeItem = new JMenuItem("Toggle standard (fast) or careful range file mode");
@@ -886,7 +898,17 @@ public class CIUGenFrame extends javax.swing.JFrame {
 					statusTextBar.setText("Now using combined output mode");
 					combineModeTextField.setText("Yes");
 				}			
-
+				
+			} else if (e.getSource() == dtBinModeItem){
+				// Toggle between saving extraction information in ms or bins
+				if (extract_in_ms){
+					extract_in_ms = false;
+					statusTextBar.setText("DT will be saved in bins");
+				} else {
+					extract_in_ms = true;
+					statusTextBar.setText("DT will be saved in milliseconds (ms)");
+				}
+				
 			} else if (e.getSource() == fastModeItem){
 				if (fastMode){
 					fastMode = false;
@@ -1194,7 +1216,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 					csvOutName = outputDir + File.separator + extr_mode_name +  "_" + rawName + "_fn-" + functionInfo.getFunction() + "_#" + rangeFileName + "_raw.csv";						
 
 					// Call the extractor
-					imextractRunner.extractMobiligramOneFile(singleFunctionVector, csvOutName, ruleMode, rangeFile, extraction_mode);
+					imextractRunner.extractMobiligramOneFile(singleFunctionVector, csvOutName, ruleMode, rangeFile, extraction_mode, extract_in_ms);
 
 					if (verboseMode){
 						extrEnd = System.nanoTime();
@@ -1214,7 +1236,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			csvOutName = outputDir + File.separator + extr_mode_name +  "_" + rawName  +  "_#" + rangeFileName  + "_raw.csv";						
 
 			//Once all function info has been gathered, send it to IMExtract
-			imextractRunner.extractMobiligramOneFile(allFunctions,csvOutName, ruleMode, rangeFile, extraction_mode);
+			imextractRunner.extractMobiligramOneFile(allFunctions,csvOutName, ruleMode, rangeFile, extraction_mode, extract_in_ms);
 			if (verboseMode){
 				extrEnd = System.nanoTime();
 				System.out.println("that extr time: " + (extrEnd - extrStart)/1000000);
@@ -1634,6 +1656,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	private boolean useWaveht;
 
 	// Mode settings
+	private boolean extract_in_ms = true;	// save information in bins if true, ms if false
 	private boolean verboseMode = false;
 	private boolean ruleMode = false;
 	private boolean combine_outputs = true;
@@ -1682,6 +1705,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	private JMenuItem printRangeOptionItem;
 	private JMenuItem toggleRulesItem;
 	private JMenuItem toggleCombineItem;
+	private JMenuItem dtBinModeItem;
 	private JMenuItem fastModeItem;
 	private JMenuItem legacyRangeItem;
 	private MenuActions menuActionListener = new MenuActions();

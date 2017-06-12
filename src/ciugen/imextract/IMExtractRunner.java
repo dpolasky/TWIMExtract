@@ -337,7 +337,7 @@ public class IMExtractRunner {
 	 * @param ruleFile = the rule OR range file being used for the extraction
 	 * @param extraction_mode = the type of extraction to be done (DT, MZ, RT, or DTMZ)
 	 */
-	public void extractMobiligramOneFile(ArrayList<DataVectorInfoObject> allFunctions, String outputFilePath, boolean ruleMode, File ruleFile, int extractionMode){
+	public void extractMobiligramOneFile(ArrayList<DataVectorInfoObject> allFunctions, String outputFilePath, boolean ruleMode, File ruleFile, int extractionMode, boolean dt_in_ms){
 		String lineSep = System.getProperty("line.separator");
 
 		// Get info types to print from first function (they will be the same for all functions)
@@ -389,7 +389,12 @@ public class IMExtractRunner {
 			if (extractionMode == RT_MODE){
 				arraylines = rtWriteOutputs(allMobData, infoTypes);
 			} else {
-				arraylines = dtmzWriteOutputs(allMobData, infoTypes);
+				double maxdt = 200; 	// if extracting in bins, maxdt = max bin
+				if (dt_in_ms){
+					// compute max DT using max m/z info from _extern.inf file
+					maxdt = get_max_dt(allFunctions.get(0).getRawDataPath());
+				}
+				arraylines = dtmzWriteOutputs(allMobData, infoTypes, maxdt);
 			}
 
 			// Now, write all the lines to file
@@ -410,7 +415,79 @@ public class IMExtractRunner {
 		}
 
 	}
+	
+	/**
+	 * Method to manually find the maximum drift time of a file using the max m/z defined in
+	 * the acquisition mass range of the file's _extern.inf file. ONLY tested for Synapt G2 so far.
+	 * @param rawDataPath
+	 * @return max drift time (double)
+	 */
+	private double get_max_dt(String rawDataPath){
+		try {
+			// read the file
+			File rawData = new File(rawDataPath, "_extern.inf");
+			BufferedReader reader = new BufferedReader(new FileReader(rawData));
+			String line = reader.readLine();
+			while (line != null){
+				// look for the max m/z
+				if (line.toUpperCase().startsWith("END MASS")){
+					String[] splits = line.split("\\t");
+					String strmz = splits[splits.length - 1];
+					double max_mz = new Double(strmz);
+					
+					// convert max m/z to max DT and return it
+					double maxDT = convert_mzdt_max(max_mz);
+					return maxDT;
+				}
+				line = reader.readLine();
+			}
+			reader.close();
+		}	
 
+		catch (IOException ex){
+			
+		}
+		return 0;
+	}
+	
+	/**
+	 * Convert from maxmium m/z to max drift time for synapt G2 using Waters built-in cutoffs
+	 * @param maxMZ
+	 * @return max drift time (double)
+	 */
+	private double convert_mzdt_max(double maxMZ){
+		double dtmax = 0;
+		if (maxMZ <= 2000){
+			dtmax = 13.78;
+		} else if (maxMZ <= 5000){
+			dtmax = 21.94;
+		} else if (maxMZ <= 8000){
+			dtmax = 27.46;
+		} else if (maxMZ <= 14000){
+			dtmax = 36.72;
+		} else if (maxMZ <= 32000){
+			dtmax = 54.52;
+		} else {
+			dtmax = 96.74;
+		}
+		
+		return dtmax;
+	}
+	
+	/**
+	 * Method to change the DT information of the first MobData array ONLY in a list of mobdata.
+	 * Converts to DT using information from file's _extern.inf. 
+	 * @param allmobdata
+	 * @return
+	 */
+	private ArrayList<MobData> convert_mobdata_to_ms(ArrayList<MobData> allmobdata, double maxDT){		
+		// Convert each bin to drift time (bin * max_dt / 200)
+		for (int i=0; i < allmobdata.get(0).getMobdata().length; i++){
+			allmobdata.get(0).getMobdata()[i][0] = allmobdata.get(0).getMobdata()[i][0] * maxDT / 200;
+		}
+		return allmobdata;
+	}
+	
 	/**
 	 * Helper method to format text output for MS or DT extractions. Assumes that each function 
 	 * (if using combined outputs) has the same bin names (e.g. DT bin 1, 2, 3, ...) and writes
@@ -420,7 +497,7 @@ public class IMExtractRunner {
 	 * @param infoTypes
 	 * @return
 	 */
-	private String[] dtmzWriteOutputs(ArrayList<MobData> allMobData, boolean[] infoTypes){  	
+	private String[] dtmzWriteOutputs(ArrayList<MobData> allMobData, boolean[] infoTypes, double maxdt){  	
 		ArrayList<String> lines = new ArrayList<String>();
 
 		// Headers
@@ -448,7 +525,7 @@ public class IMExtractRunner {
 			HEADER_LENGTH++;
 		}		
 
-		// ADD HEADER INFORMATION AND BIN NUMBERS TO THE LINES
+		// ADD HEADER INFORMATION AND BIN NUMBERS (or ms) TO THE LINES
 		int lineIndex = 0;
 		try {
 			// handle writing bin numbers if there's no data in the first file
@@ -459,6 +536,10 @@ public class IMExtractRunner {
 				}
 			} else {
 				// Mobdata is not empty, so write its contents to the array
+				if (maxdt != 200){
+					// convert DT bins to ms (manually), then write to file
+					allMobData = convert_mobdata_to_ms(allMobData, maxdt);
+				}
 				for (int i = HEADER_LENGTH; i < allMobData.get(0).getMobdata().length + HEADER_LENGTH; i++){
 					lines.add(String.valueOf(allMobData.get(0).getMobdata()[lineIndex][0]));
 					lineIndex++;

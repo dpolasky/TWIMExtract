@@ -11,9 +11,10 @@ public class Options {
 	public int mode;
 	public boolean ruleMode = false;
 	public boolean combineMode = false;
+	public boolean extract_in_ms = true;
 	
 	public Options(String inputpath, String outputpath, String rangepath, int extmode, int parsed_func,
-			boolean rule, boolean combine){
+			boolean rule, boolean combine, boolean ext_unit){
 		this.input = inputpath;
 		this.output = outputpath;
 		this.mode = extmode;
@@ -25,7 +26,7 @@ public class Options {
 		}
 		try{ this.ruleMode = rule;} catch (NullPointerException ex){}
 		try{ this.combineMode = combine; } catch (NullPointerException ex){};
-		
+		try{ this.extract_in_ms = ext_unit; } catch (NullPointerException ex) {};
 	}
 	
 	public void print_options(){
@@ -36,6 +37,13 @@ public class Options {
 		System.out.println("range: " + this.range);
 		System.out.println("ruleMode: " + this.ruleMode);
 		System.out.println("combineMode: " + this.combineMode);
+		String ext_unit = "";
+		if (this.extract_in_ms){
+			ext_unit = "milliseconds";
+		} else {
+			ext_unit = "bins";
+		}
+		System.out.println("extraction unit = " + ext_unit);
 
 	}
 	
