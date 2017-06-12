@@ -1,46 +1,27 @@
-# TWIMExtract
-
-**If you use TWIMExtract, please cite:**
-
-Haynes, S.E., Polasky D. A., Dixit, S. M., Majmudar, J. D., Neeson, K., Ruotolo, B. T., 
-Martin, B. R. "Variable-velocity traveling-wave ion mobility separation enhances peak capacity for
-data-independent acquisition proteomics". Manuscript in review
-
-TWIMExtract is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-TWIMExtract is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with TWIMExtract.  If not, see <http://www.gnu.org/licenses/>.
-
-Authors : Daniel Polasky (dpolasky@umich.edu) and Kieran Neeson (Waters)
-
 ********************************************************************************
 TWIMExtract User Guide
+
+**IF YOU USE TWIMEXTRACT, PLEASE CITE:**
+
+Haynes, S. E.; Polasky, D. A.; Dixit, S. M.; Majmudar, J. D.; Neeson, K.; Ruotolo, B. T.; Martin, B. R. 
+"Variable-Velocity Traveling-Wave Ion Mobility Separation Enhancing Peak Capacity for Data-Independent 
+Acquisition Proteomics". Anal. Chem. 2017, acs.analchem.7b00112.
+
 ********************************************************************************
 
 Setup:
-
 	1) Download TWIMExtract_Setup.exe from http://sites.lsa.umich.edu/ruotolo/software/twim-extract/
 	2) Run TWIMExtract_Setup.exe. Setup will create a shortcut (Run_TWIMExtract.bat) that should be used 
 		to run the program. 
 	3) Double click Run_TWIMExtract.bat to run TWIMExtract
 
 General Info/Purpose:
-
 	- TWIMExtract will pull data from Waters .raw files using user-defined 'range files'. 
 	- Extracted data will be collapsed to one dimension, saving either chromatographic retention time (RT), 
 		ion mobility drift time (DT), or the mass spectrum (MZ) to one axis and intensity to the other. 
 	- Extracted data are saved to a comma separated text file (.csv) without further processing
 
 Basic Use:
-
 	1) To use TWIMExtract, start the program by double clicking the Run_TWIMExtract.bat shortcut
 
 	2) Prepare range/rule files:
@@ -50,7 +31,14 @@ Basic Use:
 				retention time, drift time, and m/z to define a cube in the 3D RT-DT-MZ dataset.
 				TWIMExtract will collapse all data in the cube onto the desired axis and output a
 				text file (.csv) with the information. 
-				**See example range file in C:\TWIMExtract\_EXAMPLES for more information
+				**See example range file in C:\TWIMExtract\_EXAMPLES for a template**
+		Example range file:
+		MZ_start_(m/z): 100
+		MZ_end_(m/z): 8000
+		RT_start_(minutes): 0
+		RT_end_(minutes): 100
+		DT_start_(bins): 1
+		DT_end_(bins): 200
 			- Rule files are created using Driftscope (from Waters). In Driftscope, regions of DT-MZ
 				space can be selected. To create a rule file, save the selected region using 
 				File\Export Selection Rule. This will create a .rul file that can be selected for
@@ -69,13 +57,14 @@ Basic Use:
 			raw files will always generate a new output file. 
 		- Save info: Whether to save any information about the file (collision voltages or IM settings) to the
 			output file as a header. 
+		- For DT (drift time) extractions, output can be saved in milliseconds (ms) or bins. ms is the default,
+			but may fail on some instrument types. ***IF MILLISECOND EXTRACTION FAILS, TRY USING BINS***
 
 	5) Select the type of extraction (RT, DT, or MZ) using the appropriate button. This will open a filechooser
 		to select your desired range or rule file(s). Once the files are selected, extraction will begin. 
 		NOTE: extraction may take some time. Typically a few seconds per range file, but can be longer for large raw files. 
 
 Advanced/Other modes:
-
 	- Batch mode: To run multiple extractions in series, a batch can be generated. Batches consist of a single .csv
 		file that contains the location of a FOLDER containing raw files in one column and a FOLDER containing
 		range or rule files in the second column. Each line in the batch .csv represents a single extraction - that is, 
@@ -110,6 +99,7 @@ Advanced/Other modes:
 			-i "[input directory]" : The full system path to the .raw file from which to extract
 			-o "[output directory]" : The full system path to the folder in which to save output
 			-m [mode] : the extraction mode (the dimension of data to save). 0 = RT, 1 = DT, 2 = MZ
+
 			Optional:
 			-f [func] : the individual function to extract. If not provided, extracts all functions
 			-r "[Range path]" : The full system path to a range (.txt) or rule (.rul) file to use
@@ -117,11 +107,31 @@ Advanced/Other modes:
 			-rulemode [true or false] : Whether to use range or rule file. 
 			-combinemode [true or false] : Whether to combine all outputs from a single raw file
 				(e.g. multiple functions) into a single output. 
+			-ms [true or false]: whether to save DT extractions in milliseconds (ms) or bins. 
 
 		Example: The command below would extract DT information from all functions from the 
-		"My_data.raw" file using the "my_range.txt" range file, combine the output, and place it 
-		in C:\Extracted Data:
+		"My_data.raw" file using the "my_range.txt" range file, combine the output using bins as the
+		DT information, and place it in C:\Extracted Data:
 
 		java -jar TWIMExtract.jar -i "C:\Data\My_data.raw" -o "C:\Extracted Data" -m 1 
-			-r "C:\Ranges\my_range.txt" -rulemode false -combinemode true
+			-r "C:\Ranges\my_range.txt" -rulemode false -combinemode true -ms false
 
+
+
+
+License information: (BSD)
+	Copyright 2016 Daniel Polasky
+
+	Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+	
+	1. Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer.
+	
+	2. Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+	
+	3. Neither the name of the copyright holder nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission.
+	
+	THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, 
+	THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS 
+	BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE 
+	GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, 
+	OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
