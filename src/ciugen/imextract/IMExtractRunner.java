@@ -390,9 +390,11 @@ public class IMExtractRunner {
 				arraylines = rtWriteOutputs(allMobData, infoTypes);
 			} else {
 				double maxdt = 200; 	// if extracting in bins, maxdt = max bin
-				if (dt_in_ms){
-					// compute max DT using max m/z info from _extern.inf file
-					maxdt = get_max_dt(allFunctions.get(0).getRawDataPath());
+				if (extractionMode == DT_MODE){
+					if (dt_in_ms){
+						// compute max DT using max m/z info from _extern.inf file
+						maxdt = get_max_dt(allFunctions.get(0).getRawDataPath());
+					}
 				}
 				arraylines = dtmzWriteOutputs(allMobData, infoTypes, maxdt);
 			}
