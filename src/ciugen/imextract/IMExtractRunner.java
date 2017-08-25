@@ -14,6 +14,8 @@ import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -487,6 +489,23 @@ public class IMExtractRunner {
 		for (int i=0; i < allmobdata.get(0).getMobdata().length; i++){
 			allmobdata.get(0).getMobdata()[i][0] = allmobdata.get(0).getMobdata()[i][0] * maxDT / 200;
 		}
+		
+		// make sure conversion was successful and get bins if not
+//		double[][] first_mobdata = allmobdata.get(0).getMobdata();
+//		double max_val = 0;
+//		for (double value : first_mobdata[0]){
+//			if (value > max_val){
+//				max_val = value;
+//			}
+//		}
+//		if (max_val == 0){
+//			// The conversion failed for some reason - replace with bins
+//			System.out.println("DT conversion to ms failed, replacing with bins instead");
+//			for (int i=0; i < allmobdata.get(0).getMobdata().length; i++){
+//				allmobdata.get(0).getMobdata()[i][0] = i + 1;
+//			}
+//		}
+		
 		return allmobdata;
 	}
 	
@@ -501,9 +520,9 @@ public class IMExtractRunner {
 	 */
 	private String[] dtmzWriteOutputs(ArrayList<MobData> allMobData, boolean[] infoTypes, double maxdt){  	
 		ArrayList<String> lines = new ArrayList<String>();
-
+		
 		// Headers
-		// Loop through the list of data, writing each function's value for this CE to the line
+		// Loop through the list of data, writing each function's value for this CE to the line, and sorting
 		int HEADER_LENGTH = 1;
 		lines.add("#Range file name:");
 		if (infoTypes[USECONE_TYPES]){
@@ -513,6 +532,11 @@ public class IMExtractRunner {
 		if (infoTypes[USETRAP_TYPES]){
 			lines.add("$TrapCV:"); 
 			HEADER_LENGTH++;
+			Collections.sort(allMobData, new Comparator<MobData>(){
+				public int compare(MobData d1, MobData d2){
+					return (int) d1.getTrapCV() - (int) d2.getTrapCV();
+				}
+			});
 		}
 		if (infoTypes[USETRANSF_TYPES]){
 			lines.add("$TransferCV:");
@@ -538,7 +562,7 @@ public class IMExtractRunner {
 				}
 			} else {
 				// Mobdata is not empty, so write its contents to the array
-				if (maxdt != 200){
+				if (maxdt != 200 && maxdt != 0){
 					// convert DT bins to ms (manually), then write to file
 					allMobData = convert_mobdata_to_ms(allMobData, maxdt);
 				}

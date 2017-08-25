@@ -17,6 +17,35 @@ public class MobData {
 	private double waveVelocity;
 	private String rangeName;
 	
+	public static final int TRAP_CV = 0;
+	public static final int CONE_CV = 1;
+	public static final int TRANSF_CV = 2;
+	public static final int WAVE_HT = 3;
+	public static final int WAVE_VEL = 4;
+	
+	
+//	public int compareTo(MobData d){
+//		if (compareField == TRAP_CV){
+//			return (trapCV - d.trapCV);
+//		} else if (compareField == CONE_CV){
+//			
+//		} else if (compareField == TRANSF_CV){
+//			
+//		} else if (compareField == WAVE_HT){
+//			
+//		} else if (compareField == WAVE_VEL){
+//			
+//		} 
+//		// return trap comparison if not provided
+//		return (trapCV - d.trapCV);
+//	}
+//	
+//	@Override
+//	public int compareTo(Object arg0) {
+//		// TODO Auto-generated method stub
+//		return 0;
+//	}
+
 	public MobData(double[][] myData, String myName, double myCE){
 		this.setCollisionEnergy(myCE);
 		this.setMobdata(myData);
