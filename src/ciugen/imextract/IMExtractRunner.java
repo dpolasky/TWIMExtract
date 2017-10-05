@@ -461,7 +461,11 @@ public class IMExtractRunner {
 	 */
 	private double convert_mzdt_max(double maxMZ){
 		double dtmax = 0;
-		if (maxMZ <= 2000){
+		if (maxMZ <= 600){
+			dtmax = 7.61;
+		} else if (maxMZ <= 1200){
+			dtmax = 10.8;
+		} else if (maxMZ <= 2000){
 			dtmax = 13.78;
 		} else if (maxMZ <= 5000){
 			dtmax = 21.94;
