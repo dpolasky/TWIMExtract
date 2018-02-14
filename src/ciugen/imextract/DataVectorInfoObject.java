@@ -24,13 +24,15 @@ public class DataVectorInfoObject {
 	private String rangeName;
 	private String rawDataName;
 	private boolean[] infoTypes;
+	
+	private double functionStartTime;
 
 	
 	//(rawDataPath, rawName,function,selected,lockmass,conecv,trapcv,transfcv,wh,wv,rangesArr,rangeFileName
 	
 	public DataVectorInfoObject(String myRawDataPath, String myRawName, int myFunction, boolean mySelected,
 			double myConeCV, double myTrapCV, double myTransfCV, double myWH, double myWV,
-			double[] myRangesArr, String myRangeFileName, boolean[] myInfoTypes){
+			double[] myRangesArr, String myRangeFileName, boolean[] myInfoTypes, double myStartTime){
 		
 		this.setRawDataPath(myRawDataPath);
 		this.setRawDataName(myRawName);
@@ -46,6 +48,26 @@ public class DataVectorInfoObject {
 		this.setRangeVals(myRangesArr);
 		this.setRangeName(myRangeFileName);
 		this.setInfoTypes(myInfoTypes);
+		
+		this.setFunctionStartTime(myStartTime);
+//		this.adjustRangeVals();
+	}
+	
+	public void adjustRangeVals(){
+		/*
+		 * Adjust the provided RT range to the actual start time of the function to allow 
+		 * extraction of subsets of data from multi-function files. 
+		 */
+		double newStartTime = this.functionStartTime + this.rangeVals[IMExtractRunner.START_RT];
+		double newEndTime = this.functionStartTime + this.rangeVals[IMExtractRunner.STOP_RT];
+		
+		double[] newRanges = this.getRangeVals();
+		newRanges[IMExtractRunner.START_RT] = newStartTime;
+		newRanges[IMExtractRunner.STOP_RT] = newEndTime;
+		this.setRangeVals(newRanges);
+		
+//		this.rangeVals[IMExtractRunner.START_RT] = newStartTime;
+//		this.rangeVals[IMExtractRunner.STOP_RT] = newEndTime;
 	}
 	
 	public boolean isSelected() {
@@ -154,6 +176,14 @@ public class DataVectorInfoObject {
 
 	public void setInfoTypes(boolean[] infoTypes) {
 		this.infoTypes = infoTypes;
+	}
+
+	public double getFunctionStartTime() {
+		return functionStartTime;
+	}
+
+	public void setFunctionStartTime(double functionStartTime) {
+		this.functionStartTime = functionStartTime;
 	}
 	
 

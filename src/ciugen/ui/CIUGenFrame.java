@@ -65,17 +65,17 @@ import javax.swing.table.DefaultTableModel;
  * 
  * @author Daniel Polasky 
  * @author Keiran Neeson
- * @version TWIMExtract v1.2
+ * @version TWIMExtract v1.3
  *
  *
  */
 public class CIUGenFrame extends javax.swing.JFrame {	
 	
-	private static final String TITLE = "TWIMExtract v1.2";
+	private static final String TITLE = "TWIMExtract v1.3";
 
 	
 	private static void print_help(){
-		System.out.println("**********TWIMExtract 1.2 help*********** \n"
+		System.out.println("**********TWIMExtract 1.3 help*********** \n"
 				+ "If you use TWIMExtract, please cite: Haynes, S.E., Polasky D. A., Majmudar, J. D., Dixit, S. M., Ruotolo, B. T., Martin, B. R. \n"
 				+ "'Variable-velocity traveling-wave ion mobility separation enhances peak capacity for data-independent acquisition proteomics'. Manuscript in preparation \n"
 				+ "*****************************************\n"
@@ -359,7 +359,8 @@ public class CIUGenFrame extends javax.swing.JFrame {
 				Boolean.parseBoolean(splits[SELECTED_SPLITS]),Double.parseDouble(splits[CONECV_SPLITS]),
 				Double.parseDouble(splits[TRAPCV_SPLITS]), Double.parseDouble(splits[TRANSFCV_SPLITS]),
 				Double.parseDouble(splits[WH_SPLITS]),Double.parseDouble(splits[WV_SPLITS]),
-				rangesArr,rangeName,infoTypes);
+				rangesArr,rangeName,infoTypes,
+				Double.parseDouble(splits[FN_START_SPLITS]));
 		
 		return functionInfo;
 	}
@@ -417,6 +418,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	public CIUGenFrame() 
 	{
 		rawPaths = new ArrayList<String>();
+		fnStarts = new ArrayList<Double>();
 
 		initGUIComponents();
 		initFileChoosers();
@@ -804,6 +806,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 					rawFileDirectory = directory.getAbsolutePath();	
 					preferences.setRawDir(rawFileDirectory);
 					preferences.writeConfig();
+					fc.setCurrentDirectory(directory);
 				}
 
 			} else if (e.getSource() == rangeDirItem){
@@ -818,6 +821,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 					rangeFileDirectory = directory.getAbsolutePath();	
 					preferences.setRangeDir(rangeFileDirectory);
 					preferences.writeConfig();
+					rangefc.setCurrentDirectory(directory);
 				}
 
 			} else if (e.getSource() == outDirItem){
@@ -846,6 +850,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 					batchFileDirectory = directory.getAbsolutePath();	
 					preferences.setBatchDir(batchFileDirectory);
 					preferences.writeConfig();
+					batchfc.setCurrentDirectory(directory);
 				}
 
 			} else if (e.getSource() == ruleDirItem){
@@ -860,6 +865,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 					ruleFileDirectory = directory.getAbsolutePath();	
 					preferences.setRuleDir(ruleFileDirectory);
 					preferences.writeConfig();
+					rulefc.setCurrentDirectory(directory);
 				}
 			} else if (e.getSource() == runBatchItem){
 				// Run the batch from the user's selected file
@@ -987,6 +993,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	private void browseDataButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_browseDataButtonActionPerformed
 		// Clear the old raw data paths out of memory, if applicable
 		rawPaths.clear();
+		fnStarts.clear();
 
 		// First, make sure the user has chosen an output directory, and prompt them to choose one if not
 		if (! preferences.haveConfig){
@@ -994,8 +1001,10 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			warnConfig();
 			return;
 		} 
-
-		fc.setCurrentDirectory(new File(rawFileDirectory));
+		
+		// TODO: edits in progress
+//		fc.setCurrentDirectory(new File(rawFileDirectory));
+		
 		// First, clear the current data table (EDIT - moved up from further down in method)
 		DefaultTableModel tblModel = (DefaultTableModel)functionsTable.getModel();
 		int rowCount = tblModel.getRowCount();
@@ -1020,6 +1029,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		try {
 			// Clear the global data array
 			rawPaths.clear();
+			fnStarts.clear();
 			cleanRoot();
 
 			//EDIT - multiple files version
@@ -1043,7 +1053,8 @@ public class CIUGenFrame extends javax.swing.JFrame {
 				{
 					splits = function.split(",");
 					rawPaths.add(rawPath);
-
+					fnStarts.add(Double.parseDouble(splits[FN_START_SPLITS]));
+					
 					// Add all information to the table model
 					//                     tblModel.addRow(new Object[]{Integer.parseInt(splits[0]), filename, Boolean.parseBoolean(splits[1]), Boolean.parseBoolean(splits[2]),rawPath});
 					tblModel.addRow(new Object[]{Integer.parseInt(splits[FN_SPLITS]), filename, Boolean.parseBoolean(splits[SELECTED_SPLITS]),Double.parseDouble(splits[CONECV_SPLITS]),Double.parseDouble(splits[TRAPCV_SPLITS]),Double.parseDouble(splits[TRANSFCV_SPLITS]),Double.parseDouble(splits[WH_SPLITS]),Double.parseDouble(splits[WV_SPLITS])});
@@ -1076,9 +1087,10 @@ public class CIUGenFrame extends javax.swing.JFrame {
 
 		statusTextBar.setText("...Analyzing Data (may take a minute)...");
 		System.out.println("Analyzing data (may take some time)");
-
-		rangefc.setCurrentDirectory(new File(rangeFileDirectory));
-		rulefc.setCurrentDirectory(new File(ruleFileDirectory));
+		
+		// TODO: remove these? Seems more convenient this way
+//		rangefc.setCurrentDirectory(new File(rangeFileDirectory));
+//		rulefc.setCurrentDirectory(new File(ruleFileDirectory));
 
 		if (ruleMode){
 			// Choose rule files for spectrum if in rule mode, or run extractor without if not
@@ -1148,6 +1160,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 
 		//Now get the ranges from each range file. Initialize bin numbers FROM RAW FILE info
 		double[] rangesArr = new double[9];
+		double fileStartTime = 0.0;		// marker for actual file starting time, used for adjusting range files
 		String rangeLocation = preferences.getROOT_PATH() + File.separator + "ranges.txt";
 		if (newRangefileMode){
 			oldRangesBefore = System.nanoTime();
@@ -1155,9 +1168,10 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			IMExtractRunner.getFullDataRanges(new File(rawPaths.get(0)), 1);
 			// Read the full ranges.txt file generated
 			rangesArr = IMExtractRunner.readDataRangesOld(rangeLocation);
+			fileStartTime = rangesArr[IMExtractRunner.START_RT];
 			if (verboseMode)
 				System.out.println("full data ranges time: " + (System.nanoTime() - oldRangesBefore)/1000000);
-		}
+		} 
 
 		for( int i=0; i<dataVector.size(); i++ ) {
 			long extrStartLoop = System.nanoTime();
@@ -1169,6 +1183,8 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			rawName = (String)row.get(FILENAME_TABLE);
 			trimmedName = rawName;
 			String rawDataPath = rawPaths.get(i);
+			double fnStart = fnStarts.get(i);
+			
 			File rawFile = new File(rawDataPath);
 			double conecv = (double) row.get(CONECV_TABLE);
 			double trapcv = (double)row.get(TRAPCV_TABLE);
@@ -1200,7 +1216,9 @@ public class CIUGenFrame extends javax.swing.JFrame {
 
 			// Single file output mode: create the output file and call the extractor inside the loop
 			if (selected){
-				DataVectorInfoObject functionInfo = new DataVectorInfoObject(rawDataPath, rawName,function,selected,conecv,trapcv,transfcv,wh,wv,rangesArr,rangeFileName,infoTypes);
+				// adjust range values to account for function start time in multi-function data files
+				double[] adjRangeVals = adjustRangeVals(fnStart, rangesArr, fileStartTime);
+				DataVectorInfoObject functionInfo = new DataVectorInfoObject(rawDataPath, rawName,function,selected,conecv,trapcv,transfcv,wh,wv,adjRangeVals,rangeFileName,infoTypes, fnStart);
 				allFunctions.add(functionInfo);
 
 				if (! combine_outputs){
@@ -1246,13 +1264,34 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	}
 
 	/**
+	 * Adjust range values to account for function start time
+	 * @param functionStartTime: start time of the function (minutes)
+	 * @param ranges: initial (unadjusted) ranges array
+	 * @param fileStartTime: start time of the overall file, read from fullDataRanges. Used to offset all start times
+	 */
+	private double[] adjustRangeVals(double functionStartTime, double[] rangeVals, double fileStartTime){
+		double newStartTime = functionStartTime + rangeVals[IMExtractRunner.START_RT] + fileStartTime;
+		double newEndTime = functionStartTime + rangeVals[IMExtractRunner.STOP_RT] + fileStartTime;
+		
+		double[] newRanges = new double[9];
+		for (int i = 0; i < rangeVals.length; i++){
+			newRanges[i] = rangeVals[i];
+		}
+		newRanges[IMExtractRunner.START_RT] = newStartTime;
+		newRanges[IMExtractRunner.STOP_RT] = newEndTime;
+		return newRanges;
+	}
+	
+	
+	/**
 	 * Method opens a filechooser for the user to select their desired batch csv file, then uses
 	 * the runBatch method to execute the batch run. 
 	 * NOTE: All files will be extracted with the same settings, and all settings (checkboxes/etc)
 	 * must be selected before starting the batch
 	 */
 	private void runBatchCSV(){
-		batchfc.setCurrentDirectory(new File(batchFileDirectory));
+		// TODO: remove? Seems more convenient not to reset every time
+//		batchfc.setCurrentDirectory(new File(batchFileDirectory));
 
 		// First, get mode arguments (range/rule, mz/dt/rt, and combined/individual) by making a popup
 		Object[] modeOptions = {"RT", "DT", "MZ"};
@@ -1435,6 +1474,8 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			double manualTrap = 0.0;
 			double manualTransf = 0.0;
 			double manualCone = 0.0;
+			
+			double fnStartTime = -1.0;
 
 			if (instrumentType == 1){
 				// Synapt G2
@@ -1473,7 +1514,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 						splits = line.split("\\t");
 						if (reachedFunctions){
 							// This is not the first function, so write out the previous function info and start fresh
-							String function = numFunctions + ",true" + "," + coneCV + "," + trapCV + "," + transfCV + "," + wh + "," + wv; 
+							String function = numFunctions + ",true" + "," + coneCV + "," + trapCV + "," + transfCV + "," + wh + "," + wv + "," + fnStartTime; 
 							functions.add(function);
 							numFunctions++;
 						} else {
@@ -1495,6 +1536,10 @@ public class CIUGenFrame extends javax.swing.JFrame {
 						splits = line.split("\\t");
 						String strCE = splits[splits.length - 1];
 						coneCV = new Double(strCE);
+					} if (line.startsWith("Start Time (mins)") && reachedFunctions){
+						splits = line.split("\\t");
+						String stTime = splits[splits.length - 1];
+						fnStartTime = new Double(stTime);
 					}
 
 					// Last line of all files is always "calibration". If we've reached that line with no 
@@ -1515,7 +1560,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 				} // End - read fn info loop G2 (reached the end of the file)
 
 				// Output the final function information to a function
-				String function = numFunctions + ",true" + "," + coneCV + "," + trapCV + "," + transfCV + "," + wh + "," + wv; 
+				String function = numFunctions + ",true" + "," + coneCV + "," + trapCV + "," + transfCV + "," + wh + "," + wv + "," + fnStartTime; 
 				functions.add(function);
 
 			} else if (instrumentType == 0) {
@@ -1553,7 +1598,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 						splits = line.split("\\t");
 						if (reachedFunctions){
 							// This is not the first function, so write out the previous function info and start fresh
-							String function = numFunctions + ",true" + "," + coneCV + "," + trapCV + "," + transfCV + "," + wh + "," + wv; 
+							String function = numFunctions + ",true" + "," + coneCV + "," + trapCV + "," + transfCV + "," + wh + "," + wv + "," + fnStartTime; 
 							functions.add(function);
 							numFunctions++;
 						} else {
@@ -1575,6 +1620,10 @@ public class CIUGenFrame extends javax.swing.JFrame {
 						splits = line.split("\\t");
 						String strCE = splits[splits.length - 1];
 						coneCV = new Double(strCE);
+					} if (line.startsWith("Start Time (mins)") && reachedFunctions){
+						splits = line.split("\\t");
+						String stTime = splits[splits.length - 1];
+						fnStartTime = new Double(stTime);
 					}
 					// Last line of all files is always "calibration". If we've reached that line with no 
 					// collision information, read it from the top
@@ -1593,7 +1642,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 				} // End - read fn info loop G1 (reached the end of the file)
 
 				// Output the final function information to a function
-				String function = numFunctions + ",true" + "," + coneCV + "," + trapCV + "," + transfCV + "," + wh + "," + wv; 
+				String function = numFunctions + ",true" + "," + coneCV + "," + trapCV + "," + transfCV + "," + wh + "," + wv + "," + fnStartTime; 
 				functions.add(function);	
 
 			} else {
@@ -1665,6 +1714,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 
 	// global file information
 	private ArrayList<String> rawPaths;
+	private ArrayList<Double> fnStarts;
 
 	// String locations for function strings from getAllFunctionInfo
 	private static final int TRAPCV_SPLITS = 3;
@@ -1674,6 +1724,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	private static final int CONECV_SPLITS = 2;
 	private static final int SELECTED_SPLITS  = 1;
 	private static final int FN_SPLITS = 0;
+	private static final int FN_START_SPLITS = 7;
 
 	// String locations for table model (includes filename) - has to be in this order because that's the order it displays in the GUI
 	private static final int FN_TABLE = 0;

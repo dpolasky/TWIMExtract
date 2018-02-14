@@ -1220,7 +1220,8 @@ public class IMExtractRunner {
         	nBins = 0;
         }
         catch(java.nio.BufferUnderflowException ex){
-        	ex.printStackTrace();
+        	System.out.println("Buffer under flow: No data extracted from " + path);
+//        	ex.printStackTrace();
         }
         
         if( nType == RT_MODE )

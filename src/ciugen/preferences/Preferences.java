@@ -283,7 +283,6 @@ public void setBatchDir(String batchDir) {
 }
 
 public int getnMaxMZBins() {
-	// TODO Auto-generated method stub
 	return this.nMaxMZBins;
 }
 public void setnMaxMZBins(int bins){
