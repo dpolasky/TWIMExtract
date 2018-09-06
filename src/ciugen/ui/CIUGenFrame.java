@@ -1015,7 +1015,10 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		if(fc.showDialog(this, "OK") == 0)
 		{
 			File[] rawFiles = fc.getSelectedFiles();
-			openBrowsedData(rawFiles,tblModel);           
+			openBrowsedData(rawFiles,tblModel);  
+			String browsedDir = rawFiles[0].getParent();
+			preferences.setRawDir(browsedDir);
+			preferences.writeConfig();
 		}
 
 	}//GEN-LAST:event_browseDataButtonActionPerformed

@@ -11,7 +11,11 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URISyntaxException;
+import java.security.CodeSource;
 import java.util.ArrayList;
+
+//import ciugen.ui.CIUGenFrame;
 
 public class Preferences
 {
@@ -31,9 +35,9 @@ public class Preferences
   private String batchDir;
   private String ruleDir;
   
-  private final String CIUGEN_HOME = "C:\\TWIMExtract";	
-//  private final String CIUGEN_HOME = "C:\\CIUGen";	
-
+//  private final String CIUGEN_HOME = "C:\\TWIMExtract";	
+  
+  private String CIUGEN_HOME;
   private String LIB_PATH;
   private String BIN_PATH;
   private String CONFIG_PATH;
@@ -52,6 +56,8 @@ public class Preferences
   
   private Preferences()
   {
+	this.CIUGEN_HOME = this.getHomeDir();
+	  
     this.BIN_PATH = (this.CIUGEN_HOME + "\\bin");
     this.LIB_PATH = (this.CIUGEN_HOME + "\\lib");
     this.CONFIG_PATH = (this.CIUGEN_HOME + "\\config");
@@ -67,6 +73,20 @@ public class Preferences
     haveConfig = readConfig(txtconfig);
   }
  
+  private String getHomeDir(){
+	  CodeSource codeSource = Preferences.class.getProtectionDomain().getCodeSource();
+	  File jarFile = null;
+	  try
+	  {
+		  jarFile = new File(codeSource.getLocation().toURI().getPath());
+	  } 
+	  catch(URISyntaxException ex){
+	  }
+	  
+	  String parentDir = jarFile.getParentFile().getParentFile().getPath();  
+	  return parentDir;
+  }
+  
   /**
    * Reads in the information from the config file, to be called in the constructor. Handles a lack of 
    * config file by initializing to default values. Returns True if config file exists, false if no config

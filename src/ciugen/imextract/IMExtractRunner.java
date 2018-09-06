@@ -1462,8 +1462,8 @@ public class IMExtractRunner {
 	private static final int USECONE_TYPES = 0;
 	private static final int USETRAP_TYPES = 1;
 	private static final int USETRANSF_TYPES = 2;
-	private static final int USEWH_TYPES = 3;
-	private static final int USEWV_TYPES = 4;
+	private static final int USEWH_TYPES = 4;
+	private static final int USEWV_TYPES = 3;
 
 	/**
 	 * @return the zHigh
