@@ -331,6 +331,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			imextractRunner.extractMobiligramOneFile(allfuncs, csvOutName, arg_opts.ruleMode, ruleFile, arg_opts.mode, arg_opts.extract_in_ms);
 
 		}
+		cleanRoot();
 		System.out.println("Done!");
 	}
 	
