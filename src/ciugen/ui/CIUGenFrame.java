@@ -139,7 +139,8 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		} catch (NullPointerException ex){
 			// No function passed, do nothing (-1 default value will be used to indicate reading all functions)
 		} catch (NumberFormatException ex2){
-			System.out.println("Invalid function entered. Must be an integer. Reading all functions instead");
+			// No function passed, do nothing (-1 default value will be used to indicate reading all functions)
+//			System.out.println("No function int entered, Reading all functions instead");
 		}
 
 
@@ -234,48 +235,55 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		Options arg_opts = parse_args(args);
 
 		// Get basic file and range information
-		File rawFile = new File(arg_opts.input);
-		String rawPath = null;
-		try { rawPath = rawFile.getCanonicalPath();
-		} catch (IOException e) {
-			e.printStackTrace();
-			System.out.println("Could not find file " + rawFile.toString() + " Please check the file and try again");
-			System.exit(1);
-		}
-		String rawName = rawFile.getName();
-		String rangeName = "FULL";
-		try{
-			File rangeFile = new File(arg_opts.range);
-			rangeName = rangeFile.getName();
-		} catch (NullPointerException ex){}
-
-		// Get necessary function info for the given raw path
-		Vector<String> functions = getAllFunctionInfo(rawPath);
-		ArrayList<DataVectorInfoObject> allfuncs = new ArrayList<DataVectorInfoObject>();
-
-		// Use default infotypes for now - might add options for them later
-		// types: coneCV, trapCV, transfCV, WV, WH
-		boolean[] infoTypes = {false, true , false, false, false};
-
+//		File rawFile = new File(arg_opts.input);
+		
 		// initialize extractor
 		IMExtractRunner imextractRunner = IMExtractRunner.getInstance();
+		ArrayList<DataVectorInfoObject> allfuncs = new ArrayList<DataVectorInfoObject>();
 		
-		// Read desired function OR all functions if no func specified into a DataVector
-		if (arg_opts.function == -1){
-			// No function specified; read all functions
-			for(String function : functions ){
-				DataVectorInfoObject functionInfo = makeFunctionInfo(function, arg_opts, rawFile, rawPath,
+		String rawFilePaths = arg_opts.input;
+		String[] splits = rawFilePaths.split(",");
+		for (String rawFilePath : splits){
+			
+			File rawFile = new File(rawFilePath);
+			String rawPath = null;
+			try { rawPath = rawFile.getCanonicalPath();
+			} catch (IOException e) {
+				e.printStackTrace();
+				System.out.println("Could not find file " + rawFile.toString() + " Please check the file and try again");
+				System.exit(1);
+			}
+			String rawName = rawFile.getName();
+			String rangeName = "FULL";
+			try{
+				File rangeFile = new File(arg_opts.range);
+				rangeName = rangeFile.getName();
+			} catch (NullPointerException ex){}
+	
+			// Get necessary function info for the given raw path
+			Vector<String> functions = getAllFunctionInfo(rawPath);
+	
+			// Use default infotypes for now - might add options for them later
+			// types: coneCV, trapCV, transfCV, WV, WH
+			boolean[] infoTypes = {false, true , false, false, false};
+
+			
+			// Read desired function OR all functions if no func specified into a DataVector
+			if (arg_opts.function == -1){
+				// No function specified; read all functions
+				for(String function : functions ){
+					DataVectorInfoObject functionInfo = makeFunctionInfo(function, arg_opts, rawFile, rawPath,
+							rawName, rangeName, infoTypes);
+					allfuncs.add(functionInfo);
+				}
+			} else {
+				// Read only specified function
+				String desired_func = functions.get(arg_opts.function - 1);
+				DataVectorInfoObject functionInfo = makeFunctionInfo(desired_func, arg_opts, rawFile, rawPath,
 						rawName, rangeName, infoTypes);
 				allfuncs.add(functionInfo);
 			}
-		} else {
-			// Read only specified function
-			String desired_func = functions.get(arg_opts.function - 1);
-			DataVectorInfoObject functionInfo = makeFunctionInfo(desired_func, arg_opts, rawFile, rawPath,
-					rawName, rangeName, infoTypes);
-			allfuncs.add(functionInfo);
 		}
-		
 		
 		// Get mode name
 		String extr_mode_name = "";
@@ -300,6 +308,8 @@ public class CIUGenFrame extends javax.swing.JFrame {
 				if (!outputDir.exists()){
 					outputDir.mkdirs();
 				}
+				String rawName = singleFunctionVector.get(0).getRawDataName();
+				String rangeName = singleFunctionVector.get(0).getRangeName();
 				String csvOutName = outputDir + File.separator + extr_mode_name +  "_" + rawName + "_fn-" + functionInfo.getFunction() + "_#" + rangeName + "_raw.csv";						
 
 				// Prep rule file if in rule mode:
@@ -319,6 +329,8 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			if (!outputDir.exists()){
 				outputDir.mkdirs();
 			}
+			String rawName = allfuncs.get(0).getRawDataName();
+			String rangeName = allfuncs.get(0).getRangeName();
 			String csvOutName = outputDir + File.separator + extr_mode_name +  "_" + rawName  +  "_#" + rangeName  + "_raw.csv";						
 
 			// Prep rule file if in rule mode:
