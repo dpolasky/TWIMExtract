@@ -20,6 +20,8 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Vector;
 
 import javax.swing.BorderFactory;
@@ -65,17 +67,17 @@ import javax.swing.table.DefaultTableModel;
  * 
  * @author Daniel Polasky 
  * @author Keiran Neeson
- * @version TWIMExtract v1.3
+ * @version TWIMExtract v1.4
  *
  *
  */
 public class CIUGenFrame extends javax.swing.JFrame {	
 	
-	private static final String TITLE = "TWIMExtract v1.3";
+	private static final String TITLE = "TWIMExtract v1.4";
 
 	
 	private static void print_help(){
-		System.out.println("**********TWIMExtract 1.3 help*********** \n"
+		System.out.println("**********TWIMExtract 1.4 help*********** \n"
 				+ "If you use TWIMExtract, please cite: Haynes, S.E., Polasky D. A., Majmudar, J. D., Dixit, S. M., Ruotolo, B. T., Martin, B. R. \n"
 				+ "'Variable-velocity traveling-wave ion mobility separation enhances peak capacity for data-independent acquisition proteomics'. Manuscript in preparation \n"
 				+ "*****************************************\n"
@@ -498,7 +500,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		ruleModeLabel = new javax.swing.JLabel("Range/Rule Mode:");
 		ruleModeTextField = new javax.swing.JTextField("Range Mode");
 		combineModeLabel = new javax.swing.JLabel("Combine Outputs?");
-		combineModeTextField = new javax.swing.JTextField("Yes");
+		combineModeTextField = new javax.swing.JTextField("       Yes       ");
 
 		jPanel1_bottom.add(ruleModeLabel);
 		jPanel1_bottom.add(ruleModeTextField);
@@ -645,10 +647,13 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		toggleRulesItem.addActionListener(menuActionListener);
 		toggleCombineItem = new JMenuItem("Toggle Combined or Individual outputs");
 		toggleCombineItem.addActionListener(menuActionListener);
+		toggleCombineRawItem = new JMenuItem("Toggle combining outputs by rawfile (combines all functions). Supersedes regular combined outputs");
+		toggleCombineRawItem.addActionListener(menuActionListener);
 		dtBinModeItem = new JMenuItem("Toggle DT extraction in ms/bins");
 		dtBinModeItem.addActionListener(menuActionListener);
 		optionMenu.add(toggleRulesItem);
 		optionMenu.add(toggleCombineItem);
+		optionMenu.add(toggleCombineRawItem);
 		optionMenu.add(dtBinModeItem);
 		optionMenu.add(printRangeOptionItem);
 
@@ -911,13 +916,25 @@ public class CIUGenFrame extends javax.swing.JFrame {
 				if (combine_outputs){
 					combine_outputs = false;
 					statusTextBar.setText("Now using individual outputs mode");
-					combineModeTextField.setText("No");
+					combineModeTextField.setText("        No    ");
 				} else {
 					combine_outputs = true;
 					statusTextBar.setText("Now using combined output mode");
-					combineModeTextField.setText("Yes");
+					combineModeTextField.setText("        Yes    ");
 				}			
 				
+			} else if (e.getSource() == toggleCombineRawItem){
+				// Toggle (switch) the combined outputs mode flag
+				if (combine_outputs_by_rawname){
+					combine_outputs_by_rawname = false;
+					statusTextBar.setText("Not combining by raw file");
+					combineModeTextField.setText("Not by Raw");
+				} else {
+					combine_outputs_by_rawname = true;
+					statusTextBar.setText("Now combining by raw file");
+					combineModeTextField.setText("By Raw");
+				}	 
+			
 			} else if (e.getSource() == dtBinModeItem){
 				// Toggle between saving extraction information in ms or bins
 				if (extract_in_ms){
@@ -1015,9 +1032,6 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			return;
 		} 
 		
-		// TODO: edits in progress
-//		fc.setCurrentDirectory(new File(rawFileDirectory));
-		
 		// First, clear the current data table (EDIT - moved up from further down in method)
 		DefaultTableModel tblModel = (DefaultTableModel)functionsTable.getModel();
 		int rowCount = tblModel.getRowCount();
@@ -1104,15 +1118,15 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		statusTextBar.setText("...Analyzing Data (may take a minute)...");
 		System.out.println("Analyzing data (may take some time)");
 		
-		// TODO: remove these? Seems more convenient this way
-//		rangefc.setCurrentDirectory(new File(rangeFileDirectory));
-//		rulefc.setCurrentDirectory(new File(ruleFileDirectory));
-
 		if (ruleMode){
 			// Choose rule files for spectrum if in rule mode, or run extractor without if not
 			if(rulefc.showDialog(this,"Select these rule files and extract") == 0){
 				File[] ruleFiles = rulefc.getSelectedFiles();
 				runExtraction(ruleFiles, extractionMode);
+				// update directory
+				String browsedDir = ruleFiles[0].getParent();
+				preferences.setRuleDir(browsedDir);
+				preferences.writeConfig();
 			}   
 		} else {
 			// open file chooser to pick the range files
@@ -1120,6 +1134,10 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			{
 				File[] rangeFiles = rangefc.getSelectedFiles();
 				runExtraction(rangeFiles, extractionMode);
+				// update directory
+				String browsedDir = rangeFiles[0].getParent();
+				preferences.setRangeDir(browsedDir);
+				preferences.writeConfig();
 			}	
 		}
 		System.out.println("Done!");
@@ -1259,24 +1277,81 @@ public class CIUGenFrame extends javax.swing.JFrame {
 				}
 			}
 		}
+		// combine outputs by individual raw files mode
+		if (combine_outputs_by_rawname){
+			
+			ArrayList<ArrayList<DataVectorInfoObject>> sortedFuncs = sortFuncsByFile(allFunctions);
+			for (ArrayList<DataVectorInfoObject> rawfuncs : sortedFuncs){
+				rawName = rawfuncs.get(0).getRawDataName();
+				
+				// Make output directory folder to save files into if needed		
+				File outputDir = new File(outputDirectory + File.separator + rawName);
+				if (!outputDir.exists()){
+					outputDir.mkdirs();
+				}
+				csvOutName = outputDir + File.separator + extr_mode_name +  "_" + rawName  +  "_#" + rangeFileName  + "_raw.csv";						
 
+				//Once all function info has been gathered, send it to IMExtract
+				imextractRunner.extractMobiligramOneFile(rawfuncs, csvOutName, ruleMode, rangeFile, extraction_mode, extract_in_ms);
+				if (verboseMode){
+					extrEnd = System.nanoTime();
+					System.out.println("that extr time: " + (extrEnd - extrStart)/1000000);
+				}
+			}
+		} 
+		
 		// Combine outputs mode: make directories and call extractor after loop is finished
-		if (combine_outputs){
+		else if (combine_outputs)
+		{
 			// Make output directory folder to save files into if needed		
 			File outputDir = new File(outputDirectory + File.separator + trimmedName);
 			if (!outputDir.exists()){
 				outputDir.mkdirs();
 			}
-			csvOutName = outputDir + File.separator + extr_mode_name +  "_" + rawName  +  "_#" + rangeFileName  + "_raw.csv";						
+			csvOutName = outputDir + File.separator + extr_mode_name +  "_" + trimmedName  +  "_#" + rangeFileName  + "_raw.csv";						
 
 			//Once all function info has been gathered, send it to IMExtract
-			imextractRunner.extractMobiligramOneFile(allFunctions,csvOutName, ruleMode, rangeFile, extraction_mode, extract_in_ms);
+			imextractRunner.extractMobiligramOneFile(allFunctions, csvOutName, ruleMode, rangeFile, extraction_mode, extract_in_ms);
 			if (verboseMode){
 				extrEnd = System.nanoTime();
 				System.out.println("that extr time: " + (extrEnd - extrStart)/1000000);
 			}
 		}
 
+	}
+	
+	/**
+	 * Sort an input list of functions by rawname so that all data from one raw file is grouped together.
+	 * @param allfuncs
+	 * @return
+	 */
+	private ArrayList<ArrayList<DataVectorInfoObject>> sortFuncsByFile(ArrayList<DataVectorInfoObject> allfuncs){
+		ArrayList<ArrayList<DataVectorInfoObject>> sortedFuncs = new ArrayList<ArrayList<DataVectorInfoObject>>();
+		
+		// Create a Map (dictionary) to hold found rawnames and lists of functions with them
+		HashMap<String, ArrayList<DataVectorInfoObject>> rawNameLists = new HashMap<String, ArrayList<DataVectorInfoObject>>();
+		
+		for (DataVectorInfoObject func: allfuncs){
+			String rawname = func.getRawDataName();
+			if (rawNameLists.containsKey(rawname)){
+				// This raw file is already present; add this function to the associated list
+				ArrayList<DataVectorInfoObject> currentList = rawNameLists.get(rawname);
+				currentList.add(func);
+				rawNameLists.put(rawname, currentList);
+			}
+			else 
+			{
+				// Raw file not yet present - create a new list for it
+				ArrayList<DataVectorInfoObject> currentList = new ArrayList<DataVectorInfoObject>();
+				currentList.add(func);
+				rawNameLists.put(rawname, currentList);
+			}
+		}
+		
+		// Once all files have been sorted, return the sorted lists
+		sortedFuncs = new ArrayList<ArrayList<DataVectorInfoObject>>(rawNameLists.values());
+		
+		return sortedFuncs;
 	}
 
 	/**
@@ -1306,9 +1381,6 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	 * must be selected before starting the batch
 	 */
 	private void runBatchCSV(){
-		// TODO: remove? Seems more convenient not to reset every time
-//		batchfc.setCurrentDirectory(new File(batchFileDirectory));
-
 		// First, get mode arguments (range/rule, mz/dt/rt, and combined/individual) by making a popup
 		Object[] modeOptions = {"RT", "DT", "MZ"};
 		int extractionMode = JOptionPane.showOptionDialog(jPanel2, 
@@ -1327,7 +1399,12 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			try {			
 				// User has chosen a csv file containing the desired lists
 				File csvFile = batchfc.getSelectedFile();
-
+				
+				// update directory
+				String browsedDir = csvFile.getParent();
+				preferences.setBatchDir(browsedDir);
+				preferences.writeConfig();
+				
 				// Do an initial read to get the number of lines present
 				BufferedReader quickreader = new BufferedReader(new FileReader(csvFile));
 				String quickline = quickreader.readLine();
@@ -1725,6 +1802,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	private boolean verboseMode = false;
 	private boolean ruleMode = false;
 	private boolean combine_outputs = true;
+	private boolean combine_outputs_by_rawname = false;
 	private boolean newRangefileMode = true;	// if false, allows legacy format range files (9 fields) to be used instead of new range files (6 fields)
 	private boolean fastMode = true;	// Determines how often to check the # of bins (fast = at the start of a new raw file, otherwise it's done for each function)
 
@@ -1772,6 +1850,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	private JMenuItem printRangeOptionItem;
 	private JMenuItem toggleRulesItem;
 	private JMenuItem toggleCombineItem;
+	private JMenuItem toggleCombineRawItem;
 	private JMenuItem dtBinModeItem;
 	private JMenuItem fastModeItem;
 	private JMenuItem legacyRangeItem;

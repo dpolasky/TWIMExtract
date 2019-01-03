@@ -427,39 +427,71 @@ public class IMExtractRunner {
 	 * @return max drift time (double)
 	 */
 	private double get_max_dt(String rawDataPath){
+		double max_dt = 0.0;
+		double max_mz = 0.0;
+		boolean mob_delay = false;
+		double delay_time = 0.0;
+		
 		try {
+			
 			// read the file
 			File rawData = new File(rawDataPath, "_extern.inf");
 			BufferedReader reader = new BufferedReader(new FileReader(rawData));
 			String line = reader.readLine();
 			while (line != null){
-				// look for the max m/z
+				// MS mode
 				if (line.toUpperCase().startsWith("END MASS")){
 					String[] splits = line.split("\\t");
 					String strmz = splits[splits.length - 1];
-					double max_mz = new Double(strmz);
-					
-					// convert max m/z to max DT and return it
-					double maxDT = convert_mzdt_max(max_mz);
-					return maxDT;
+					max_mz = new Double(strmz);
 				}
+				// MSMS mode
+				if (line.toUpperCase().startsWith("MSMS END MASS")){
+					String[] splits = line.split("\\t");
+					String strmz = splits[splits.length - 1];
+					max_mz = new Double(strmz);
+				}
+				// check for mobility delays
+				if (line.startsWith("Using Mobility Delay after Trap Release")){
+					String[] splits = line.split("\\t");
+					String strDelay = splits[splits.length - 1];
+					mob_delay = Boolean.parseBoolean(strDelay);
+				}
+				// check for mobility delays
+				if (line.startsWith("IMS Wave Delay")){
+					String[] splits = line.split("\\t");
+					String strDelayTime = splits[splits.length - 1];
+					delay_time = Double.parseDouble(strDelayTime);
+					// convert to ms. NOTE: dividing by 10,000 because I think the units are incorrect in MassLynx (this gives the correct max DT)
+					delay_time = delay_time / 10000.0;
+				}
+				
 				line = reader.readLine();
 			}
+			
+			// convert max m/z to max DT and return it. Account for delay if it was used
+			if (mob_delay){
+				max_dt = convert_mzdt_max(max_mz, delay_time);
+			} else {
+				max_dt = convert_mzdt_max(max_mz, 0.0);
+			}
+
 			reader.close();
 		}	
 
 		catch (IOException ex){
 			
 		}
-		return 0;
+		return max_dt;
 	}
 	
 	/**
-	 * Convert from maxmium m/z to max drift time for synapt G2 using Waters built-in cutoffs
+	 * Convert from maxmium m/z to max drift time for synapt G2 using Waters built-in cutoffs. Accounts
+	 * for mobility trapping delay times. 
 	 * @param maxMZ
 	 * @return max drift time (double)
 	 */
-	private double convert_mzdt_max(double maxMZ){
+	private double convert_mzdt_max(double maxMZ, double delay_time){
 		double dtmax = 0;
 		if (maxMZ <= 600){
 			dtmax = 7.61;
@@ -470,15 +502,16 @@ public class IMExtractRunner {
 		} else if (maxMZ <= 5000){
 			dtmax = 21.94;
 		} else if (maxMZ <= 8000){
-			dtmax = 27.46;
+			dtmax = 27.51;
 		} else if (maxMZ <= 14000){
-			dtmax = 36.72;
+			dtmax = 36.27;
 		} else if (maxMZ <= 32000){
-			dtmax = 54.52;
+			dtmax = 54.58;
 		} else {
 			dtmax = 96.74;
 		}
-		
+		dtmax = dtmax - delay_time;
+		System.out.println(dtmax);
 		return dtmax;
 	}
 	
