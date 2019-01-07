@@ -656,14 +656,18 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		optionMenu.add(toggleCombineRawItem);
 		optionMenu.add(dtBinModeItem);
 		optionMenu.add(printRangeOptionItem);
-
+		
+		// advanced menu items
 		fastModeItem = new JMenuItem("Toggle standard (fast) or careful range file mode");
 		fastModeItem.setToolTipText("ONLY needed if your functions have significantly varying numbers of bins");
 		fastModeItem.addActionListener(menuActionListener);
 		legacyRangeItem = new JMenuItem("Toggle standard or legacy range files");
 		legacyRangeItem.addActionListener(menuActionListener);
+		toggleUnderscoreItem = new JMenuItem("Toggle removing final underscore in individual rawfile combine");
+		toggleUnderscoreItem.addActionListener(menuActionListener);
 		advancedMenu.add(fastModeItem);
 		advancedMenu.add(legacyRangeItem);
+		advancedMenu.add(toggleUnderscoreItem);
 
 		// Help menu items
 		helpItem = new JMenuItem("Open help file");
@@ -961,7 +965,16 @@ public class CIUGenFrame extends javax.swing.JFrame {
 					newRangefileMode = true;
 					statusTextBar.setText("Now using standard range files (6 fields)");
 				}
-			} 
+			} else if (e.getSource() == toggleUnderscoreItem){
+				// Toggle (switch) the combined outputs mode flag
+				if (trimFinalUnderscore){
+					trimFinalUnderscore = false;
+					statusTextBar.setText("Not not trimming final underscore");
+				} else {
+					trimFinalUnderscore = true;
+					statusTextBar.setText("Now trimming final underscore");
+				}	 
+			}
 
 			else if (e.getSource() == helpItem){
 				// Open the help file included in the main CIUGen directory on install
@@ -1333,6 +1346,16 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		
 		for (DataVectorInfoObject func: allfuncs){
 			String rawname = func.getRawDataName();
+			
+			if (trimFinalUnderscore){
+				String[] splits = rawname.split("_");
+				String newRawname = "";
+				for (int i=0; i < splits.length - 1; i++){
+					newRawname = newRawname + splits[i];
+				}
+				rawname = newRawname;
+			}
+			
 			if (rawNameLists.containsKey(rawname)){
 				// This raw file is already present; add this function to the associated list
 				ArrayList<DataVectorInfoObject> currentList = rawNameLists.get(rawname);
@@ -1803,6 +1826,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	private boolean ruleMode = false;
 	private boolean combine_outputs = true;
 	private boolean combine_outputs_by_rawname = false;
+	private boolean trimFinalUnderscore = false;
 	private boolean newRangefileMode = true;	// if false, allows legacy format range files (9 fields) to be used instead of new range files (6 fields)
 	private boolean fastMode = true;	// Determines how often to check the # of bins (fast = at the start of a new raw file, otherwise it's done for each function)
 
@@ -1851,6 +1875,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	private JMenuItem toggleRulesItem;
 	private JMenuItem toggleCombineItem;
 	private JMenuItem toggleCombineRawItem;
+	private JMenuItem toggleUnderscoreItem;
 	private JMenuItem dtBinModeItem;
 	private JMenuItem fastModeItem;
 	private JMenuItem legacyRangeItem;

@@ -500,18 +500,17 @@ public class IMExtractRunner {
 		} else if (maxMZ <= 2000){
 			dtmax = 13.78;
 		} else if (maxMZ <= 5000){
-			dtmax = 21.94;
+			dtmax = 21.940;
 		} else if (maxMZ <= 8000){
-			dtmax = 27.51;
+			dtmax = 27.513;
 		} else if (maxMZ <= 14000){
-			dtmax = 36.27;
+			dtmax = 36.268;
 		} else if (maxMZ <= 32000){
-			dtmax = 54.58;
+			dtmax = 54.580;
 		} else {
-			dtmax = 96.74;
+			dtmax = 96.743;
 		}
 		dtmax = dtmax - delay_time;
-		System.out.println(dtmax);
 		return dtmax;
 	}
 	
@@ -522,27 +521,14 @@ public class IMExtractRunner {
 	 * @return
 	 */
 	private ArrayList<MobData> convert_mobdata_to_ms(ArrayList<MobData> allmobdata, double maxDT){		
-		// Convert each bin to drift time (bin * max_dt / 200)
+		// Convert each bin to drift time ((bin - 1) * max_dt / 199)
+		// NOTE: For some reason, there are actually only 199 bins, not 200. Doing the conversion by
+		// dividing by 199 gives results that match the output from Driftscope/MassLynx. Bin 1 is set
+		// to a drift time of 0 (millisecond DTs are 0-indexed, whereas bin numbers are 1-indexed, so all
+		// bins have 1 subtracted from them to be converted correctly)
 		for (int i=0; i < allmobdata.get(0).getMobdata().length; i++){
-			allmobdata.get(0).getMobdata()[i][0] = allmobdata.get(0).getMobdata()[i][0] * maxDT / 200;
+			allmobdata.get(0).getMobdata()[i][0] = (allmobdata.get(0).getMobdata()[i][0] - 1) * maxDT / 199;
 		}
-		
-		// make sure conversion was successful and get bins if not
-//		double[][] first_mobdata = allmobdata.get(0).getMobdata();
-//		double max_val = 0;
-//		for (double value : first_mobdata[0]){
-//			if (value > max_val){
-//				max_val = value;
-//			}
-//		}
-//		if (max_val == 0){
-//			// The conversion failed for some reason - replace with bins
-//			System.out.println("DT conversion to ms failed, replacing with bins instead");
-//			for (int i=0; i < allmobdata.get(0).getMobdata().length; i++){
-//				allmobdata.get(0).getMobdata()[i][0] = i + 1;
-//			}
-//		}
-		
 		return allmobdata;
 	}
 	
