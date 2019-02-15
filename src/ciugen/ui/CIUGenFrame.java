@@ -3,6 +3,8 @@ package ciugen.ui;
 
 import ciugen.imextract.DataVectorInfoObject;
 import ciugen.imextract.IMExtractRunner;
+import ciugen.imextract.MobData;
+import ciugen.imextract.ExtractSave;
 import ciugen.preferences.Preferences;
 import ciugen.ui.utils.RawFileFilter;
 import ciugen.ui.utils.RuleFileFilter;
@@ -1163,20 +1165,450 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	/*
 	 * Execute the extraction loop - count through the range/rule files to be handled
 	 */
-	private void runExtraction(File[] rangeORruleFiles, int extractionMode){	
+	private void runExtractionOld(File[] rangeORruleFiles, int extractionMode){	
 		int counter = 0;
 		for (File rangeFile : rangeORruleFiles){
-			combinedLoopHelper(rangeFile, rangeORruleFiles.length, extractionMode);
+			combinedLoopHelperOld(rangeFile, rangeORruleFiles.length, extractionMode);
 			counter++;
 			System.out.println("\n" + "Completed Range/Rule File " + counter + " of " + rangeORruleFiles.length + "\n");
 		}
 	}
+	
+	
+	/**
+	 * Handler for generating the output filename for extracted data. Handles combined or individual files
+	 * (by raw or range) using the global parameters to return the appropriate filepath in all cases. Also
+	 * handles creation of any folders necessary. Should be called before the creation of any ExtractSaves
+	 * (inside loops if they are). 
+	 * NOTE: uses the first range/raw file to name any combined files
+	 * @param rangeORruleFiles
+	 * @param allRawFunctions
+	 * @return 
+	 */
+	private String generateFilePath(File rangeFile, DataVectorInfoObject function, int extraction_mode){
+		String rawName = function.getRawDataName();
+		
+		// File output naming information
+		String rangeFileName = rangeFile.getName();     				
+		String extr_mode_name = "";
+		if (extraction_mode == IMExtractRunner.DT_MODE){
+			extr_mode_name = "DT";
+		} else if(extraction_mode == IMExtractRunner.MZ_MODE){
+			extr_mode_name = "MZ";
+		} else if(extraction_mode == IMExtractRunner.RT_MODE){
+			extr_mode_name = "RT";
+		}
+		// Make output directory folder to save files into if needed		
+		File outputDir = new File(outputDirectory + File.separator + rawName);
+		if (!outputDir.exists()){
+			outputDir.mkdirs();
+		}
+		String csvOutName = outputDir + File.separator + extr_mode_name +  "_" + rawName + "_fn-" + function.getFunction() + "_#" + rangeFileName + "_raw.csv";						
+		return csvOutName;
+	}
+	
+	/**
+	 * Method that parses between various ways of combining the extracted data into output file(s). 
+	 * Arranges data as requested by the various combine options, extracts, and sends extracted data to
+	 * be saved.  
+	 * @param rangeORruleFiles
+	 * @param allRawFunctions
+	 * @param extractionMode
+	 */
+	private void runExtraction(File[] rangeORruleFiles, int extractionMode){	
+		IMExtractRunner imextractRunner = IMExtractRunner.getInstance();
+		int counter = 0;
+		// TODO: include counters
+		System.out.println("\n" + "Completed Range/Rule File " + counter + " of " + rangeORruleFiles.length + "\n");
+		
+		if (rangeCombine) {
+			// Range combine mode
+			if (combine_outputs) {
+				// single output for ALL files (range and raw)
+				ArrayList<MobData> allData = new ArrayList<MobData>();
+				DataVectorInfoObject referenceFunc = null;
+				for (File rangeFile : rangeORruleFiles){
+					// Read function information for this range file
+					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);
+					referenceFunc = allRawFunctions.get(0);
+					
+					ArrayList<MobData> currentData = imextractRunner.extractMobiligramReturn(allRawFunctions, ruleMode, rangeFile, extractionMode, extract_in_ms);
+					allData.addAll(currentData);
+				}
+				
+				String filePath = generateFilePath(rangeORruleFiles[0], referenceFunc, extractionMode);
+				ExtractSave combinedSave = new ExtractSave(allData, filePath, extractionMode, referenceFunc, extract_in_ms);
+				imextractRunner.writeExtractSave(combinedSave);
+				
+			} else if (combine_outputs_by_rawname) {
+				// Combine by individual raw files AND range files. Create one save for each raw file after sorting
+				// First, count how many raw files we have
+				int numRawFiles = 0;
+				File testRange = rangeORruleFiles[0];
+				ArrayList<DataVectorInfoObject> testRawFunctions = getFunctionsFromTable(testRange, extractionMode);				
+				ArrayList<ArrayList<DataVectorInfoObject>> testSortedFuncs = sortFuncsByFile(testRawFunctions);
+				numRawFiles = testSortedFuncs.size();
+				
+				// Extract data
+				ExtractSave[] allSaves = new ExtractSave[numRawFiles];
+				for (File rangeFile: rangeORruleFiles){	
+					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);				
+					ArrayList<ArrayList<DataVectorInfoObject>> allSortedFuncs = sortFuncsByFile(allRawFunctions);
 
+					// Extract each raw file and combine before saving
+					for (int index=0; index<numRawFiles; index++){
+						ArrayList<DataVectorInfoObject> sortedFuncs = allSortedFuncs.get(index);
+					
+						ArrayList<MobData> currentData = imextractRunner.extractMobiligramReturn(sortedFuncs, ruleMode, rangeFile, extractionMode, extract_in_ms);
+						
+						try{
+							allSaves[index].getMobData().addAll(currentData);
+						} catch (IndexOutOfBoundsException ex){
+							// We haven't initialized the save yet. Do so with only this raw data - the rest will be added later
+							String filePath = generateFilePath(rangeORruleFiles[0], sortedFuncs.get(0), extractionMode);
+							ExtractSave currentSave = new ExtractSave(currentData, filePath, extractionMode, sortedFuncs.get(0), extract_in_ms);
+							allSaves[index] = currentSave;
+						}
+						
+					}
+				}
+				// Save all outputs after all ranges have been queried
+				for (ExtractSave currentSave: allSaves){
+					imextractRunner.writeExtractSave(currentSave);
+				}
+				
+			} else {
+				// Combine by range files, but NOT by raw file (output a csv with all ranges for a given raw file)
+				// First, count how many raw files we have
+				int numRawFiles = 0;
+				for (File rangeFile : rangeORruleFiles){
+					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);				
+					numRawFiles = allRawFunctions.size();
+				}
+				
+				ExtractSave[] allSaves = new ExtractSave[numRawFiles];
+				for (File rangeFile : rangeORruleFiles){	
+					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);				
+					
+					// Extract each raw file and combine before saving
+					for (int index=0; index<numRawFiles; index++){
+						DataVectorInfoObject function = allRawFunctions.get(index);
+						ArrayList<DataVectorInfoObject> singleFunc = new ArrayList<DataVectorInfoObject>();
+						singleFunc.add(function);
+					
+						ArrayList<MobData> currentData = imextractRunner.extractMobiligramReturn(singleFunc, ruleMode, rangeFile, extractionMode, extract_in_ms);
+						
+						try{
+							allSaves[index].getMobData().addAll(currentData);
+						} catch (IndexOutOfBoundsException ex){
+							// We haven't initialized the save yet. Do so with only this raw data - the rest will be added later
+							String filePath = generateFilePath(rangeORruleFiles[0], function, extractionMode);
+							ExtractSave currentSave = new ExtractSave(currentData, filePath, extractionMode, function, extract_in_ms);
+							allSaves[index] = currentSave;
+						}
+						
+					}
+				}
+				// Save all outputs after all ranges have been queried
+				for (ExtractSave currentSave: allSaves){
+					imextractRunner.writeExtractSave(currentSave);
+				}
+			}
+		} 
+		else 
+		{
+			// # not range combine mode
+			if (combine_outputs) {
+				// Combine by rawfile but NOT range file. Generates a csv for each range file
+				for (File rangeFile : rangeORruleFiles){
+					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);				
+					ArrayList<MobData> allData = imextractRunner.extractMobiligramReturn(allRawFunctions, ruleMode, rangeFile, extractionMode, extract_in_ms);
+					
+					String filePath = generateFilePath(rangeFile, allRawFunctions.get(0), extractionMode);
+					ExtractSave currentSave = new ExtractSave(allData, filePath, extractionMode, allRawFunctions.get(0), extract_in_ms);
+					imextractRunner.writeExtractSave(currentSave);
+				}
+				
+			} else if (combine_outputs_by_rawname) {
+				
+				for (File rangeFile : rangeORruleFiles){
+					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);				
+					ArrayList<ArrayList<DataVectorInfoObject>> sortedFuncs = sortFuncsByFile(allRawFunctions);
+
+					for (ArrayList<DataVectorInfoObject> rawFuncs: sortedFuncs){
+						ArrayList<MobData> allData = imextractRunner.extractMobiligramReturn(rawFuncs, ruleMode, rangeFile, extractionMode, extract_in_ms);
+						
+						String filePath = generateFilePath(rangeFile, rawFuncs.get(0), extractionMode);
+						ExtractSave currentSave = new ExtractSave(allData, filePath, extractionMode, rawFuncs.get(0), extract_in_ms);
+						imextractRunner.writeExtractSave(currentSave);
+					}
+				}
+				
+			} else {
+				// do not combine any files - write every range/raw combination to separate file
+				for (File rangeFile: rangeORruleFiles){
+					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);				
+
+					for (DataVectorInfoObject function: allRawFunctions){
+						ArrayList<DataVectorInfoObject> singleFunc = new ArrayList<DataVectorInfoObject>();
+						singleFunc.add(function);
+						ArrayList<MobData> allData = imextractRunner.extractMobiligramReturn(singleFunc, ruleMode, rangeFile, extractionMode, extract_in_ms);
+
+						String filePath = generateFilePath(rangeFile, function, extractionMode);
+						ExtractSave currentSave = new ExtractSave(allData, filePath, extractionMode, function, extract_in_ms);
+						imextractRunner.writeExtractSave(currentSave);
+					}
+				}
+
+			}
+		}
+
+	}
+	
+	private ArrayList<DataVectorInfoObject> getFunctionsFromTable(File rangeFile, int extraction_mode){
+		ArrayList<DataVectorInfoObject> allFunctions = new ArrayList<DataVectorInfoObject>();
+		
+		String rangePath = "";
+		try {
+			rangePath = rangeFile.getCanonicalPath();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		// File output naming information
+		String rangeFileName = rangeFile.getName();     				
+
+		// run imextract to extract a full mobiligram for each selected function in the functions table
+		DefaultTableModel funcsModel = (DefaultTableModel)functionsTable.getModel();
+		Vector<?> dataVector = funcsModel.getDataVector();
+		String rawName = rawPaths.get(0);
+
+		//Now get the ranges from each range file. Initialize bin numbers FROM RAW FILE info
+		double[] rangesArr = new double[9];
+		double fileStartTime = 0.0;		// marker for actual file starting time, used for adjusting range files
+		String rangeLocation = preferences.getROOT_PATH() + File.separator + "ranges.txt";
+		if (newRangefileMode){
+			oldRangesBefore = System.nanoTime();
+			// Call IMExtractRunner to generate a ranges.txt file in the root directory with the full ranges
+			IMExtractRunner.getFullDataRanges(new File(rawPaths.get(0)), 1);
+			// Read the full ranges.txt file generated
+			rangesArr = IMExtractRunner.readDataRangesOld(rangeLocation);
+			fileStartTime = rangesArr[IMExtractRunner.START_RT];
+			if (verboseMode)
+				System.out.println("full data ranges time: " + (System.nanoTime() - oldRangesBefore)/1000000);
+		} 
+
+		for( int i=0; i<dataVector.size(); i++ ) {
+			// Get the current data table row and its function information
+			Vector<?> row = (Vector<?>)dataVector.get(i);
+			int function = (int)row.get(FN_TABLE);  
+			boolean selected = (boolean)row.get(SELECT_TABLE);
+			rawName = (String)row.get(FILENAME_TABLE);
+			String rawDataPath = rawPaths.get(i);
+			double fnStart = fnStarts.get(i);
+			
+			File rawFile = new File(rawDataPath);
+			double conecv = (double) row.get(CONECV_TABLE);
+			double trapcv = (double)row.get(TRAPCV_TABLE);
+			double transfcv = (double) row.get(TRANSFCV_TABLE);
+			double wv = (double) row.get(WV_TABLE);
+			double wh = (double) row.get(WH_TABLE);
+			boolean[] infoTypes = {useConeCV,useTrapCV,useTransfCV,useWavevel,useWaveht};
+
+			// Careful mode: fast mode assumes same bin size for each function. Careful mode recalculates each time. 
+			if (! fastMode){
+				IMExtractRunner.getFullDataRanges(rawFile, function);
+				System.out.println("full data ranges time: " + (System.nanoTime() - oldRangesBefore)/1000000);
+
+				rangeLocation = preferences.getROOT_PATH() + File.separator + "ranges.txt";
+				rangesArr = IMExtractRunner.readDataRangesOld(rangeLocation);
+				System.out.println("full data ranges + read them time: " + (System.nanoTime() - oldRangesBefore)/1000000);
+			}
+
+			if (! ruleMode){
+				if (newRangefileMode){
+					rangesArr = IMExtractRunner.readDataRanges(rangePath, rangesArr);
+				} else {
+					rangesArr = IMExtractRunner.readDataRangesOld(rangePath);
+				}
+			}
+			if (verboseMode){
+				IMExtractRunner.PrintRanges(rangesArr);
+			}
+
+			// only add selected rows to the function information output
+			if (selected){
+				// adjust range values to account for function start time in multi-function data files
+				double[] adjRangeVals = adjustRangeVals(fnStart, rangesArr, fileStartTime);
+				DataVectorInfoObject functionInfo = new DataVectorInfoObject(rawDataPath, rawName,function,selected,conecv,trapcv,transfcv,wh,wv,adjRangeVals,rangeFileName,infoTypes, fnStart);
+				allFunctions.add(functionInfo);
+			}
+		}
+		return allFunctions;
+	}
+	
+	
 	/*
 	 * Input and output file handling and calls the actual extractor (IMExtractRunner) to do the 
 	 * extractions specified by the range/rule files and extraction_mode. 
 	 */
-	private void combinedLoopHelper(File rangeFile, int length, int extraction_mode){
+//	private ArrayList<MobData> combinedLoopHelper(File rangeFile, ArrayList<DataVectorInfoObject> allFunctions, int length, int extraction_mode){
+//		extrStart = System.nanoTime();
+//		IMExtractRunner imextractRunner = IMExtractRunner.getInstance();
+//
+//		//Now get the ranges from each range file. Initialize bin numbers FROM RAW FILE info
+//		double[] rangesArr = new double[9];
+//		double fileStartTime = 0.0;		// marker for actual file starting time, used for adjusting range files
+//		String rangeLocation = preferences.getROOT_PATH() + File.separator + "ranges.txt";
+//		if (newRangefileMode){
+//			oldRangesBefore = System.nanoTime();
+//			// Call IMExtractRunner to generate a ranges.txt file in the root directory with the full ranges
+//			IMExtractRunner.getFullDataRanges(new File(rawPaths.get(0)), 1);
+//			// Read the full ranges.txt file generated
+//			rangesArr = IMExtractRunner.readDataRangesOld(rangeLocation);
+//			fileStartTime = rangesArr[IMExtractRunner.START_RT];
+//			if (verboseMode)
+//				System.out.println("full data ranges time: " + (System.nanoTime() - oldRangesBefore)/1000000);
+//		} 
+//		for (DataVectorInfoObject function: allFunctions){
+//			// Careful mode: fast mode assumes same bin size for each function. Careful mode recalculates each time. 
+//			if (! fastMode){
+//				IMExtractRunner.getFullDataRanges(rawFile, function);
+//				System.out.println("full data ranges time: " + (System.nanoTime() - oldRangesBefore)/1000000);
+//
+//				rangeLocation = preferences.getROOT_PATH() + File.separator + "ranges.txt";
+//				rangesArr = IMExtractRunner.readDataRangesOld(rangeLocation);
+//				System.out.println("full data ranges + read them time: " + (System.nanoTime() - oldRangesBefore)/1000000);
+//			}
+//
+//			if (! ruleMode){
+//				if (newRangefileMode){
+//					rangesArr = IMExtractRunner.readDataRanges(rangePath, rangesArr);
+//				} else {
+//					rangesArr = IMExtractRunner.readDataRangesOld(rangePath);
+//				}
+//			}
+//			if (verboseMode){
+//				IMExtractRunner.PrintRanges(rangesArr);
+//			}
+//			
+//			double[] adjRangeVals = adjustRangeVals(fnStart, rangesArr, fileStartTime);
+//			DataVectorInfoObject functionInfo = new DataVectorInfoObject(rawDataPath, rawName,function,selected,conecv,trapcv,transfcv,wh,wv,adjRangeVals,rangeFileName,infoTypes, fnStart);
+//			allFunctions.add(functionInfo);
+//			
+//		}
+//		
+//		//Once all function info has been gathered, send it to IMExtract
+//		ArrayList<MobData> allData = imextractRunner.extractMobiligramReturn(allFunctions, ruleMode, rangeFile, extraction_mode, extract_in_ms);
+//		if (verboseMode){
+//			extrEnd = System.nanoTime();
+//			System.out.println("that extr time: " + (extrEnd - extrStart)/1000000);
+//		}
+//		return allData;
+//
+
+//		for( int i=0; i<dataVector.size(); i++ ) {
+//			long extrStartLoop = System.nanoTime();
+//		}
+			// Get the current data table row and its function information
+//			Vector<?> row = (Vector<?>)dataVector.get(i);
+//			int function = (int)row.get(FN_TABLE);  
+//			boolean selected = (boolean)row.get(SELECT_TABLE);
+//			rawName = (String)row.get(FILENAME_TABLE);
+//			trimmedName = rawName;
+//			String rawDataPath = rawPaths.get(i);
+//			double fnStart = fnStarts.get(i);
+//			
+//			File rawFile = new File(rawDataPath);
+//			double conecv = (double) row.get(CONECV_TABLE);
+//			double trapcv = (double)row.get(TRAPCV_TABLE);
+//			double transfcv = (double) row.get(TRANSFCV_TABLE);
+//			double wv = (double) row.get(WV_TABLE);
+//			double wh = (double) row.get(WH_TABLE);
+//			boolean[] infoTypes = {useConeCV,useTrapCV,useTransfCV,useWavevel,useWaveht};
+//
+//			// Careful mode: fast mode assumes same bin size for each function. Careful mode recalculates each time. 
+//			if (! fastMode){
+//				IMExtractRunner.getFullDataRanges(rawFile, function);
+//				System.out.println("full data ranges time: " + (System.nanoTime() - oldRangesBefore)/1000000);
+//
+//				rangeLocation = preferences.getROOT_PATH() + File.separator + "ranges.txt";
+//				rangesArr = IMExtractRunner.readDataRangesOld(rangeLocation);
+//				System.out.println("full data ranges + read them time: " + (System.nanoTime() - oldRangesBefore)/1000000);
+//			}
+//
+//			if (! ruleMode){
+//				if (newRangefileMode){
+//					rangesArr = IMExtractRunner.readDataRanges(rangePath, rangesArr);
+//				} else {
+//					rangesArr = IMExtractRunner.readDataRangesOld(rangePath);
+//				}
+//			}
+//			if (verboseMode){
+//				IMExtractRunner.PrintRanges(rangesArr);
+//			}
+
+			// Single file output mode: create the output file and call the extractor inside the loop
+//			if (selected){
+//				// adjust range values to account for function start time in multi-function data files
+//				double[] adjRangeVals = adjustRangeVals(fnStart, rangesArr, fileStartTime);
+//				DataVectorInfoObject functionInfo = new DataVectorInfoObject(rawDataPath, rawName,function,selected,conecv,trapcv,transfcv,wh,wv,adjRangeVals,rangeFileName,infoTypes, fnStart);
+//				allFunctions.add(functionInfo);
+//			}
+//			if (! combine_outputs){
+//				// Pass a new list with only one function's info to the extractor
+//				ArrayList<DataVectorInfoObject> singleFunctionVector = new ArrayList<DataVectorInfoObject>();
+//				singleFunctionVector.add(functionInfo);
+//
+//				// Make output directory folder to save files into if needed		
+//				File outputDir = new File(outputDirectory + File.separator + trimmedName);
+//				if (!outputDir.exists()){
+//					outputDir.mkdirs();
+//				}
+//				csvOutName = outputDir + File.separator + extr_mode_name +  "_" + rawName + "_fn-" + functionInfo.getFunction() + "_#" + rangeFileName + "_raw.csv";						
+//
+//				// Call the extractor
+//				imextractRunner.extractMobiligramOneFile(singleFunctionVector, csvOutName, ruleMode, rangeFile, extraction_mode, extract_in_ms);
+//
+//				if (verboseMode){
+//					extrEnd = System.nanoTime();
+//					System.out.println("that extr time: " + (extrEnd - extrStartLoop)/1000000);
+//				}
+//			}
+//			
+//		}
+//		// combine outputs by individual raw files mode
+//		if (combine_outputs_by_rawname){
+//			
+//			ArrayList<ArrayList<DataVectorInfoObject>> sortedFuncs = sortFuncsByFile(allFunctions);
+//			for (ArrayList<DataVectorInfoObject> rawfuncs : sortedFuncs){
+//				rawName = rawfuncs.get(0).getRawDataName();
+//				
+//				// Make output directory folder to save files into if needed		
+//				File outputDir = new File(outputDirectory + File.separator + rawName);
+//				if (!outputDir.exists()){
+//					outputDir.mkdirs();
+//				}
+//				csvOutName = outputDir + File.separator + extr_mode_name +  "_" + rawName  +  "_#" + rangeFileName  + "_raw.csv";						
+//
+//				//Once all function info has been gathered, send it to IMExtract
+//				imextractRunner.extractMobiligramOneFile(rawfuncs, csvOutName, ruleMode, rangeFile, extraction_mode, extract_in_ms);
+//				if (verboseMode){
+//					extrEnd = System.nanoTime();
+//					System.out.println("that extr time: " + (extrEnd - extrStart)/1000000);
+//				}
+//			}
+//		} 
+//		
+//		// Combine outputs mode: make directories and call extractor after loop is finished
+//
+//
+//	}
+	
+	/*
+	 * Input and output file handling and calls the actual extractor (IMExtractRunner) to do the 
+	 * extractions specified by the range/rule files and extraction_mode. 
+	 */
+	private void combinedLoopHelperOld(File rangeFile, int length, int extraction_mode){
 		extrStart = System.nanoTime();
 
 		ArrayList<DataVectorInfoObject> allFunctions = new ArrayList<DataVectorInfoObject>();

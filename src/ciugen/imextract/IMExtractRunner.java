@@ -420,6 +420,105 @@ public class IMExtractRunner {
 
 	}
 	
+	public void writeExtractSave(ExtractSave saveObj){
+		String lineSep = System.getProperty("line.separator");
+
+		// Get info types to print from first function (they will be the same for all functions)
+		boolean[] infoTypes = saveObj.getReferenceFunction().getInfoTypes();
+		
+		// Now, write the output file
+		File outFile = new File(saveObj.getOutputFilePath());
+		ArrayList<MobData> allMobData = saveObj.getMobData();
+
+		// Get the formatted text output for the appropriate extraction type (RT has to be handled differently from others)
+		String[] arraylines = null;
+		if (saveObj.getExtractionMode() == RT_MODE){
+			arraylines = rtWriteOutputs(allMobData, infoTypes);
+		} else {
+			double maxdt = 200; 	// if extracting in bins, maxdt = max bin
+			if (saveObj.getExtractionMode() == DT_MODE){
+				if (saveObj.isDT_in_MS()){
+					// compute max DT using max m/z info from _extern.inf file
+					maxdt = get_max_dt(saveObj.getReferenceFunction().getRawDataPath());
+				}
+			}
+			arraylines = dtmzWriteOutputs(allMobData, infoTypes, maxdt);
+		}
+
+		// Now, write all the lines to file
+		try {
+			BufferedWriter writer = new BufferedWriter(new FileWriter(outFile));
+			for (String line : arraylines){
+				writer.write(line);
+				writer.write(lineSep);
+			}
+			writer.flush();
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	/**
+	 * Updated extract Mobiligram method that takes a list of functions to analyze (length 1 for single
+	 * file analyses), calls the appropriate helper methods based on the extraction mode, then returns
+	 * the generated mobdata for output as appropriate. 
+	 * @param allFunctions = the list of functions (data) to be extracted with all their associated information in DataVectorInfoObject format
+	 * @param outputFilePath = where to write the output file
+	 * @param ruleMode = whether to use range files or rule files for extracting
+	 * @param ruleFile = the rule OR range file being used for the extraction
+	 * @param extraction_mode = the type of extraction to be done (DT, MZ, RT, or DTMZ)
+	 */
+	public ArrayList<MobData> extractMobiligramReturn(ArrayList<DataVectorInfoObject> allFunctions, boolean ruleMode, File rangeFile, int extractionMode, boolean dt_in_ms){
+		// Collect mobData for all functions in the list
+		ArrayList<MobData> allMobData = new ArrayList<MobData>();
+
+		for (DataVectorInfoObject function : allFunctions){
+			String rawDataFilePath = function.getRawDataPath();
+			String rawName = function.getRawDataName();
+
+			int functionNum = function.getFunction();
+			double conecv = function.getConeCV();
+			double trapcv = function.getCollisionEnergy();
+			double transfcv = function.getTransfCV();
+			double wh = function.getWaveHeight();
+			double wv = function.getWaveVel();
+			double[] rangeVals = function.getRangeVals();
+			String rangeName = function.getRangeName();
+
+			double[][] data = null;
+			try {
+				if (extractionMode == DT_MODE){
+					data = generateReplicateMobiligram(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, rangeFile, ruleMode);
+	
+				} else if (extractionMode == MZ_MODE){
+					data = generateReplicateSpectrum(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, rangeFile, ruleMode);
+	
+				} else if (extractionMode == RT_MODE){
+					data = generateReplicateChromatogram(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, rangeFile, ruleMode);
+	
+				} else if (extractionMode == DTMZ_MODE){
+					//    				data = generateReplicateDTMZ(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, ruleFile, ruleMode);
+				}
+			}
+			catch (FileNotFoundException ex) 
+			{
+				ex.printStackTrace();
+			} 
+			catch (IOException ex) 
+			{
+				ex.printStackTrace();
+			}
+			if (data == null){
+				System.out.println("Error during extraction! Check your raw data - it might be empty or corrupted");
+			}
+			
+			MobData currentMob = new MobData(data,rawName,rangeName,conecv,trapcv,transfcv,wh,wv);
+			allMobData.add(currentMob);
+		}
+		return allMobData;
+	}
+	
 	/**
 	 * Method to manually find the maximum drift time of a file using the max m/z defined in
 	 * the acquisition mass range of the file's _extern.inf file. ONLY tested for Synapt G2 so far.
