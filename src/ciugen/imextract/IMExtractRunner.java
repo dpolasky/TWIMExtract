@@ -645,8 +645,9 @@ public class IMExtractRunner {
 		
 		// Headers
 		// Loop through the list of data, writing each function's value for this CE to the line, and sorting
-		int HEADER_LENGTH = 1;
-		lines.add("#Range file name:");
+		int HEADER_LENGTH = 2;
+		lines.add("# Range file name:");
+		lines.add("# Raw file name:");
 		if (infoTypes[USECONE_TYPES]){
 			lines.add("$ConeCV:"); 
 			HEADER_LENGTH++;
@@ -709,9 +710,13 @@ public class IMExtractRunner {
 		// FILL IN THE ARRAY WITH ACTUAL DATA, starting with headers
 		for (MobData data : allMobData){
 			int lineCounter = 0;
-			// Print the range name only for the first data column
-			if (allMobData.indexOf(data) == 0)
-				arraylines[0] = arraylines[0] + "," + data.getRangeName();
+//			// Print the range name only for the first data column
+//			if (allMobData.indexOf(data) == 0)
+//				arraylines[0] = arraylines[0] + "," + data.getRangeName();
+			// Print range/raw name for ALL columns in case ranges are being combined
+			arraylines[0] = arraylines[0] + "," + data.getRangeName();
+			lineCounter++;
+			arraylines[1] = arraylines[1] + "," + data.getRawFileName();
 			lineCounter++;
 
 			// Print desired header information for the specified info types
