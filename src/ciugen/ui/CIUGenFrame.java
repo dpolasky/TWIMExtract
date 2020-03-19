@@ -587,7 +587,9 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	private void initRunButtons(){
 		runButton_CIU.addActionListener(runButtonActionListener);
 		runButton_CIU.setText("Extract CIU");
-		runButton_CIU.setToolTipText("Extracts 2D (RT/DT) information to make a CIU plot. Faster than DT extraction for CIU. MRM CIU mode must use this option.");
+		runButton_CIU.setToolTipText("Extracts 2D (RT/DT) information to make a CIU plot. Faster than DT extraction for CIU. " +
+				"MRM CIU mode must use this option. NOTE: Combine_by_raw is the ONLY combine option allowed for this mode and will " +
+				"be selected automatically.");
 
 		runButton_DT.addActionListener(runButtonActionListener);
 		runButton_DT.setText("Extract DT");
@@ -1390,8 +1392,12 @@ public class CIUGenFrame extends javax.swing.JFrame {
 					int rawCounter = 1;
 					
 					for (ArrayList<DataVectorInfoObject> rawFuncs: sortedFuncs){
-						ArrayList<MobData> allData = imextractRunner.extractMobiligramReturn(rawFuncs, ruleMode, rangeFile, extractionMode, extract_in_ms);
-						
+						ArrayList<MobData> allData;
+						if (extractionMode != IMExtractRunner.RTDT_MODE) {
+							allData = imextractRunner.extractMobiligramReturn(rawFuncs, ruleMode, rangeFile, extractionMode, extract_in_ms);
+						} else {
+							allData = imextractRunner.extractMobiligram2D(rawFuncs, ruleMode, rangeFile, extractionMode, extract_in_ms);
+						}
 						String filePath = generateFilePath(rangeFile, rawFuncs.get(0).getRawDataName(), rawFuncs.get(0).getFunction(), extractionMode);
 						ExtractSave currentSave = new ExtractSave(allData, filePath, extractionMode, rawFuncs.get(0), extract_in_ms);
 						imextractRunner.writeExtractSave(currentSave);

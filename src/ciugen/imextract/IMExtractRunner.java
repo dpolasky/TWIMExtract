@@ -345,42 +345,8 @@ public class IMExtractRunner {
 		// Get info types to print from first function (they will be the same for all functions)
 		boolean[] infoTypes = allFunctions.get(0).getInfoTypes();
 		try {
-			// Collect mobData for all functions in the list
-			ArrayList<MobData> allMobData = new ArrayList<MobData>();
-
-			for (DataVectorInfoObject function : allFunctions){
-				String rawDataFilePath = function.getRawDataPath();
-				String rawName = function.getRawDataName();
-
-				int functionNum = function.getFunction();
-				double conecv = function.getConeCV();
-				double trapcv = function.getCollisionEnergy();
-				double transfcv = function.getTransfCV();
-				double wh = function.getWaveHeight();
-				double wv = function.getWaveVel();
-				double[] rangeVals = function.getRangeVals();
-				String rangeName = function.getRangeName();
-
-				double[][] data = null;
-				if (extractionMode == DT_MODE){
-					data = generateReplicateMobiligram(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, ruleFile, ruleMode);
-
-				} else if (extractionMode == MZ_MODE){
-					data = generateReplicateSpectrum(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, ruleFile, ruleMode);
-
-				} else if (extractionMode == RT_MODE){
-					data = generateReplicateChromatogram(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, ruleFile, ruleMode);
-
-				} else if (extractionMode == DTMZ_MODE){
-					//    				data = generateReplicateDTMZ(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, ruleFile, ruleMode);
-				}
-
-				if (data == null){
-					System.out.println("Error during extraction! Check your raw data - it might be empty or corrupted");
-				}
-				MobData currentMob = new MobData(data,rawName,rangeName,conecv,trapcv,transfcv,wh,wv);
-				allMobData.add(currentMob);
-			}
+			// Get data
+			ArrayList<MobData> allMobData = extractMobiligramReturn(allFunctions, ruleMode, ruleFile, extractionMode, dt_in_ms);
 
 			// Now, write the output file
 			File out = new File(outputFilePath);
@@ -458,7 +424,59 @@ public class IMExtractRunner {
 			e.printStackTrace();
 		}
 	}
-	
+	/**
+	 * Extract Mobiligram method for CIU (2D RTDT) extractions. Takes a list of functions to analyze to convenient running with old setup,
+	 * but ONLY uses the first function. Calls the new helper methods to perform a SINGLE 2D RTDT extraction and returns
+	 * mobData as in the 1D extraction method.
+	 * the generated mobdata for output as appropriate.
+	 * @param allFunctions = the list of functions (data) to be extracted with all their associated information in DataVectorInfoObject format
+	 * @param outputFilePath = where to write the output file
+	 * @param ruleMode = whether to use range files or rule files for extracting
+	 * @param ruleFile = the rule OR range file being used for the extraction
+	 * @param extraction_mode = the type of extraction to be done (DT, MZ, RT, or DTMZ)
+	 */
+	public ArrayList<MobData> extractMobiligram2D(ArrayList<DataVectorInfoObject> allFunctions, boolean ruleMode, File rangeFile, int extractionMode, boolean dt_in_ms){
+		// Collect mobData for all functions in the list
+		ArrayList<MobData> allMobData = new ArrayList<MobData>();
+
+		if (extractionMode != RTDT_MODE){
+			System.out.println("ERROR: 2D extraction requested for non-2D mode. Returning no data");
+			return allMobData;
+		}
+		DataVectorInfoObject function = allFunctions.get(0);
+		String rawDataFilePath = function.getRawDataPath();
+		String rawName = function.getRawDataName();
+
+		int functionNum = function.getFunction();
+		double conecv = function.getConeCV();
+		double trapcv = function.getCollisionEnergy();
+		double transfcv = function.getTransfCV();
+		double wh = function.getWaveHeight();
+		double wv = function.getWaveVel();
+		double[] rangeVals = function.getRangeVals();
+		String rangeName = function.getRangeName();
+
+		double[][] data = null;
+		try {
+			data = generateReplicateMobiligram(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, rangeFile, ruleMode);
+		}
+		catch (FileNotFoundException ex)
+		{
+			ex.printStackTrace();
+		}
+		catch (IOException ex)
+		{
+			ex.printStackTrace();
+		}
+		if (data == null){
+			System.out.println("Error during extraction! Check your raw data - it might be empty or corrupted");
+		}
+
+		MobData currentMob = new MobData(data,rawName,rangeName,conecv,trapcv,transfcv,wh,wv);
+		allMobData.add(currentMob);
+
+		return allMobData;
+	}
 	/**
 	 * Updated extract Mobiligram method that takes a list of functions to analyze (length 1 for single
 	 * file analyses), calls the appropriate helper methods based on the extraction mode, then returns
