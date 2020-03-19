@@ -12,3 +12,13 @@
 # idea
 *.iml
 *.idea
+out/config/config.txt
+out/lib/ranges_1DDT.txt
+out/lib/ranges_1DMZ.txt
+out/lib/ranges_1DRT.txt
+*.bin
+out/root/_ce.dat
+*.1dDT
+out/root/ranges.txt
+unins000.exe
+unins000.dat
