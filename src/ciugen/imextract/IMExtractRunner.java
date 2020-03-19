@@ -1565,6 +1565,7 @@ public class IMExtractRunner {
 	public static int DT_MODE = 1;
 	public static int MZ_MODE = 2;
 	public static int DTMZ_MODE = 3;
+	public static int RTDT_MODE = 4;
 
 	// Range values 
 	private static double minMZ = 0.0;

@@ -467,6 +467,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		runPanel = new javax.swing.JPanel();
 		jLabel2 = new javax.swing.JLabel();
 		tabbedPane = new javax.swing.JTabbedPane();
+		runButton_CIU = new javax.swing.JButton();
 		runButton_DT = new javax.swing.JButton(); 
 		runButton_MZ = new javax.swing.JButton();
 		runButton_RT = new javax.swing.JButton();
@@ -553,11 +554,12 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		// jPanel 3:
 		jPanel3.setLayout(new java.awt.BorderLayout());
 //		jLabel2.setText("<html>Choose an Extraction Mode to run:<br>To extract DT in ms, see options menu</html>");
-		jLabel2.setText("Choose an Extraction Mode to run:");
+		jLabel2.setText("Choose Extraction Mode:");
 		jPanel3.add(jLabel2, java.awt.BorderLayout.WEST);
 
 		// initialize the various extract data (run) buttons
 		initRunButtons();
+		runPanel.add(runButton_CIU);
 		runPanel.add(runButton_MZ);
 		runPanel.add(runButton_DT);
 		runPanel.add(runButton_RT);
@@ -583,6 +585,10 @@ public class CIUGenFrame extends javax.swing.JFrame {
 
 
 	private void initRunButtons(){
+		runButton_CIU.addActionListener(runButtonActionListener);
+		runButton_CIU.setText("Extract CIU");
+		runButton_CIU.setToolTipText("Extracts 2D (RT/DT) information to make a CIU plot. Faster than DT extraction for CIU. MRM CIU mode must use this option.");
+
 		runButton_DT.addActionListener(runButtonActionListener);
 		runButton_DT.setText("Extract DT");
 		runButton_DT.setToolTipText("Extracts a 1-dimensional drift time distribution (collapses all MS and RT information). "
@@ -1063,7 +1069,9 @@ public class CIUGenFrame extends javax.swing.JFrame {
 				runExtractorButton(e, IMExtractRunner.MZ_MODE);
 			} else if (e.getSource() == runButton_RT){
 				runExtractorButton(e, IMExtractRunner.RT_MODE);
-			} 
+			} else if (e.getSource() == runButton_CIU) {
+				runExtractorButton(e, IMExtractRunner.RTDT_MODE);
+			}
 		}
 	}
 
@@ -1222,8 +1230,8 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	 * @param allRawFunctions
 	 * @return 
 	 */
-	private String generateFilePath(File rangeFile, DataVectorInfoObject function, int extraction_mode){
-		String rawName = function.getRawDataName();
+	private String generateFilePath(File rangeFile, String rawName, int function, int extraction_mode){
+//		String rawName = function.getRawDataName();
 		
 		// File output naming information
 		String rangeFileName = rangeFile.getName();     				
@@ -1240,7 +1248,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		if (!outputDir.exists()){
 			outputDir.mkdirs();
 		}
-		String csvOutName = outputDir + File.separator + extr_mode_name +  "_" + rawName + "_fn-" + function.getFunction() + "_#" + rangeFileName + "_raw.csv";						
+		String csvOutName = outputDir + File.separator + extr_mode_name +  "_" + rawName + "_fn-" + function + "_#" + rangeFileName + "_raw.csv";
 		return csvOutName;
 	}
 	
@@ -1255,54 +1263,53 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	private void runExtraction(File[] rangeORruleFiles, int extractionMode){	
 		IMExtractRunner imextractRunner = IMExtractRunner.getInstance();
 		int counter = 1;
-		
+
 		if (combine_ranges) {
 			// Range combine mode
 			if (combine_outputs) {
 				// single output for ALL files (range and raw)
 				ArrayList<MobData> allData = new ArrayList<MobData>();
 				DataVectorInfoObject referenceFunc = null;
-				for (File rangeFile : rangeORruleFiles){
+				for (File rangeFile : rangeORruleFiles) {
 					// Read function information for this range file
 					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);
 					referenceFunc = allRawFunctions.get(0);
-					
+
 					ArrayList<MobData> currentData = imextractRunner.extractMobiligramReturn(allRawFunctions, ruleMode, rangeFile, extractionMode, extract_in_ms);
 					allData.addAll(currentData);
 					System.out.println("\n" + "Extracted from Range/Rule File " + counter + " of " + rangeORruleFiles.length + "\n");
 					counter++;
 				}
-				
-				String filePath = generateFilePath(rangeORruleFiles[0], referenceFunc, extractionMode);
+				String filePath = generateFilePath(rangeORruleFiles[0], referenceFunc.getRawDataName(), referenceFunc.getFunction(), extractionMode);
 				ExtractSave combinedSave = new ExtractSave(allData, filePath, extractionMode, referenceFunc, extract_in_ms);
 				imextractRunner.writeExtractSave(combinedSave);
-				
+
 			} else if (combine_outputs_by_rawname) {
 				// Combine by individual raw files AND range files. Create one save for each raw file after sorting
 				// First, count how many raw files we have
 				int numRawFiles = 0;
 				File testRange = rangeORruleFiles[0];
-				ArrayList<DataVectorInfoObject> testRawFunctions = getFunctionsFromTable(testRange, extractionMode);				
+				ArrayList<DataVectorInfoObject> testRawFunctions = getFunctionsFromTable(testRange, extractionMode);
 				ArrayList<ArrayList<DataVectorInfoObject>> testSortedFuncs = sortFuncsByFile(testRawFunctions);
 				numRawFiles = testSortedFuncs.size();
-				
+
 				// Extract data
 				ExtractSave[] allSaves = new ExtractSave[numRawFiles];
-				for (File rangeFile: rangeORruleFiles){	
-					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);				
+				for (File rangeFile : rangeORruleFiles) {
+					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);
 					ArrayList<ArrayList<DataVectorInfoObject>> allSortedFuncs = sortFuncsByFile(allRawFunctions);
 
 					// Extract each raw file and combine before saving
-					for (int index=0; index<numRawFiles; index++){
+					for (int index = 0; index < numRawFiles; index++) {
 						ArrayList<DataVectorInfoObject> sortedFuncs = allSortedFuncs.get(index);
-					
+
 						ArrayList<MobData> currentData = imextractRunner.extractMobiligramReturn(sortedFuncs, ruleMode, rangeFile, extractionMode, extract_in_ms);
-						
-						try{
+
+						try {
 							allSaves[index].getMobData().addAll(currentData);
-						} catch (NullPointerException ex){
+						} catch (NullPointerException ex) {
 							// We haven't initialized the save yet. Do so with only this raw data - the rest will be added later
-							String filePath = generateFilePath(rangeORruleFiles[0], sortedFuncs.get(0), extractionMode);
+							String filePath = generateFilePath(rangeORruleFiles[0], sortedFuncs.get(0).getRawDataName(), sortedFuncs.get(0).getFunction(), extractionMode);
 							ExtractSave currentSave = new ExtractSave(currentData, filePath, extractionMode, sortedFuncs.get(0), extract_in_ms);
 							allSaves[index] = currentSave;
 						}
@@ -1313,36 +1320,36 @@ public class CIUGenFrame extends javax.swing.JFrame {
 					counter++;
 				}
 				// Save all outputs after all ranges have been queried
-				for (ExtractSave currentSave: allSaves){
+				for (ExtractSave currentSave : allSaves) {
 					imextractRunner.writeExtractSave(currentSave);
 				}
-				
+
 			} else {
 				// Combine by range files, but NOT by raw file (output a csv with all ranges for a given raw file)
 				// First, count how many raw files we have
 				int numRawFiles = 0;
-				for (File rangeFile : rangeORruleFiles){
-					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);				
+				for (File rangeFile : rangeORruleFiles) {
+					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);
 					numRawFiles = allRawFunctions.size();
 				}
-				
+
 				ExtractSave[] allSaves = new ExtractSave[numRawFiles];
-				for (File rangeFile : rangeORruleFiles){	
-					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);				
-					
+				for (File rangeFile : rangeORruleFiles) {
+					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);
+
 					// Extract each raw file and combine before saving
-					for (int index=0; index<numRawFiles; index++){
+					for (int index = 0; index < numRawFiles; index++) {
 						DataVectorInfoObject function = allRawFunctions.get(index);
 						ArrayList<DataVectorInfoObject> singleFunc = new ArrayList<DataVectorInfoObject>();
 						singleFunc.add(function);
-					
+
 						ArrayList<MobData> currentData = imextractRunner.extractMobiligramReturn(singleFunc, ruleMode, rangeFile, extractionMode, extract_in_ms);
-						
-						try{
+
+						try {
 							allSaves[index].getMobData().addAll(currentData);
-						} catch (NullPointerException ex){
+						} catch (NullPointerException ex) {
 							// We haven't initialized the save yet. Do so with only this raw data - the rest will be added later
-							String filePath = generateFilePath(rangeORruleFiles[0], function, extractionMode);
+							String filePath = generateFilePath(rangeORruleFiles[0], function.getRawDataName(), function.getFunction(), extractionMode);
 							ExtractSave currentSave = new ExtractSave(currentData, filePath, extractionMode, function, extract_in_ms);
 							allSaves[index] = currentSave;
 						}
@@ -1353,10 +1360,11 @@ public class CIUGenFrame extends javax.swing.JFrame {
 					counter++;
 				}
 				// Save all outputs after all ranges have been queried
-				for (ExtractSave currentSave: allSaves){
+				for (ExtractSave currentSave : allSaves) {
 					imextractRunner.writeExtractSave(currentSave);
 				}
 			}
+
 		} 
 		else 
 		{
@@ -1364,10 +1372,9 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			if (combine_outputs) {
 				// Combine by rawfile but NOT range file. Generates a csv for each range file
 				for (File rangeFile : rangeORruleFiles){
-					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);				
+					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);
 					ArrayList<MobData> allData = imextractRunner.extractMobiligramReturn(allRawFunctions, ruleMode, rangeFile, extractionMode, extract_in_ms);
-					
-					String filePath = generateFilePath(rangeFile, allRawFunctions.get(0), extractionMode);
+					String filePath = generateFilePath(rangeFile, allRawFunctions.get(0).getRawDataName(), allRawFunctions.get(0).getFunction(), extractionMode);
 					ExtractSave currentSave = new ExtractSave(allData, filePath, extractionMode, allRawFunctions.get(0), extract_in_ms);
 					imextractRunner.writeExtractSave(currentSave);
 					
@@ -1385,7 +1392,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 					for (ArrayList<DataVectorInfoObject> rawFuncs: sortedFuncs){
 						ArrayList<MobData> allData = imextractRunner.extractMobiligramReturn(rawFuncs, ruleMode, rangeFile, extractionMode, extract_in_ms);
 						
-						String filePath = generateFilePath(rangeFile, rawFuncs.get(0), extractionMode);
+						String filePath = generateFilePath(rangeFile, rawFuncs.get(0).getRawDataName(), rawFuncs.get(0).getFunction(), extractionMode);
 						ExtractSave currentSave = new ExtractSave(allData, filePath, extractionMode, rawFuncs.get(0), extract_in_ms);
 						imextractRunner.writeExtractSave(currentSave);
 						
@@ -1407,7 +1414,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 						singleFunc.add(function);
 						ArrayList<MobData> allData = imextractRunner.extractMobiligramReturn(singleFunc, ruleMode, rangeFile, extractionMode, extract_in_ms);
 
-						String filePath = generateFilePath(rangeFile, function, extractionMode);
+						String filePath = generateFilePath(rangeFile, function.getRawDataName(), function.getFunction(), extractionMode);
 						ExtractSave currentSave = new ExtractSave(allData, filePath, extractionMode, function, extract_in_ms);
 						imextractRunner.writeExtractSave(currentSave);
 						
@@ -2395,6 +2402,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	private javax.swing.JLabel rangeCombineLabel;
 	private javax.swing.JTextField rangeCombineTextField;
 	private javax.swing.JTabbedPane tabbedPane;
+	private javax.swing.JButton runButton_CIU;
 	private javax.swing.JButton runButton_DT; 
 	private javax.swing.JButton runButton_MZ;
 	private javax.swing.JButton runButton_RT;
