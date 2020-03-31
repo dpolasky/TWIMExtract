@@ -93,16 +93,16 @@ public class CIUGenFrame extends javax.swing.JFrame {
 				+ "-ms DT_EXTRACTMODE: true or false. DT extractions will be saved in milliseconds if true and bins if false. Default = true");
 	}
 	
-	private static Options parse_args(String args[]){
+	private static Options parse_args(String[] args){
 		String input_path = null;
 		String output_path = null;
 		int extract_mode = -1;
 		int parsed_func = -1;
 		String range_path = null;
-		Boolean rule_mode = false;
-		Boolean combine_mode = false;
+		boolean rule_mode = false;
+		boolean combine_mode = false;
 		String ext_string = null;
-		Boolean extract_in_ms_args = true;
+		boolean extract_in_ms_args = true;
 		String func_string = "";
 
 		// Parse args
@@ -156,77 +156,10 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			range_path = "FULL";
 		}
 
-		Options options = new Options(input_path, output_path, range_path, extract_mode, parsed_func, rule_mode, combine_mode, extract_in_ms_args);
-//		options.print_options();
-		return options;
+		return new Options(input_path, output_path, range_path, extract_mode, parsed_func, rule_mode, combine_mode, extract_in_ms_args);
 	}
 	
-//	private static Options parse_args_old(String args[]){
-//		// Combine arg array, since we are parsing on '>' characters instead of spaces (to allow spaces in filenames)
-//		String arg_string = "";
-//		for (String arg : args){
-//			arg_string = arg_string + arg + " ";
-//		}
-//		String[] arg_splits = arg_string.split(">");
-//		
-//		String input_path = null;
-//		String output_path = null;
-//		int extract_mode = -1;
-//		int parsed_func = -1;
-//		String range_path = null;
-//		Boolean rule_mode = false;
-//		Boolean combine_mode = false;
-//		String ext_string = null;
-//		String func_string = "";
-//		
-//		// Parse args
-//		for(int count=0; count < arg_splits.length; count++){
-//			// If args[count] matchs a flag, the following entry contains the value for that flag
-//			String[] inner_splits = arg_splits[count].split("<");
-//			if(arg_splits[count].startsWith("i<")) input_path = inner_splits[1].trim();
-//			if(arg_splits[count].startsWith("o<")) output_path = inner_splits[1].trim();
-//			if(arg_splits[count].startsWith("m<")) ext_string = inner_splits[1].trim();
-//			if(arg_splits[count].startsWith("f<")) func_string = inner_splits[1].trim();
-//			if(arg_splits[count].startsWith("r<")) range_path = inner_splits[1].trim();
-//			if(arg_splits[count].startsWith("rulemode<")) rule_mode = Boolean.parseBoolean(inner_splits[1].trim());
-//			if(arg_splits[count].startsWith("combinemode<")) combine_mode = Boolean.parseBoolean(inner_splits[1].trim());
-//			if(arg_splits[count].startsWith("h")){
-//				print_help();
-//				System.exit(0);
-//			}
-//		}
-//		// Parse non-strings and handle exceptions
-//		try{
-//			extract_mode = Integer.parseInt(ext_string.trim());
-//		} catch (NumberFormatException ex){
-//			System.out.println("Invalid mode entered. Must enter 0 (RT), 1 (DT), or 2 (MZ) for mode");
-//			System.exit(1);
-//		}
-//		try{
-//			parsed_func = Integer.parseInt(func_string);
-//		} catch (NullPointerException ex){
-//			// No function passed, do nothing (-1 default value will be used to indicate reading all functions)
-//		} catch (NumberFormatException ex2){
-//			System.out.println("Invalid function entered. Must be an integer. Reading all functions instead");
-//		}
-//		
-//		
-//		// Make sure all required arguments are present
-//		if (input_path == null || output_path == null || extract_mode == -1){
-//			System.out.println("Not all required arguments passed! Must have -i, -o, and -m. See -h for help");
-//			System.exit(1);
-//		}
-//		// Set range to 'FULL' if it is currently null, to specify passing the entire range available
-//		if (range_path == null){
-//			range_path = "FULL";
-//		}
-//		
-//		Options options = new Options(input_path, output_path, range_path, extract_mode, parsed_func, rule_mode, combine_mode);
-////		options.print_options();
-//		return options;
-//	}
-	
-	/*
+	/**
 	 * Method to run extractor from command line. Roughly duplicates the 'combinedLoopHelper'
 	 * method, but couldn't be easily combined due to the structure of the GUI (which uses
 	 * the actual GUI elements to store information, and thus can't be used outside the GUI). 
@@ -241,7 +174,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		
 		// initialize extractor
 		IMExtractRunner imextractRunner = IMExtractRunner.getInstance();
-		ArrayList<DataVectorInfoObject> allfuncs = new ArrayList<DataVectorInfoObject>();
+		ArrayList<DataVectorInfoObject> allfuncs = new ArrayList<>();
 		
 		String rawFilePaths = arg_opts.input;
 		String[] splits = rawFilePaths.split(",");
@@ -260,7 +193,9 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			try{
 				File rangeFile = new File(arg_opts.range);
 				rangeName = rangeFile.getName();
-			} catch (NullPointerException ex){}
+			} catch (NullPointerException ex){
+				ex.printStackTrace();
+			}
 	
 			// Get necessary function info for the given raw path
 			Vector<String> functions = getAllFunctionInfo(rawPath);
@@ -369,21 +304,19 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			rangesArr = IMExtractRunner.readDataRanges(arg_opts.range, rangesArr);
 		}
 
-		DataVectorInfoObject functionInfo = new DataVectorInfoObject(rawPath, rawName, 
+		return new DataVectorInfoObject(rawPath, rawName,
 				Integer.parseInt(splits[FN_SPLITS]),
 				Boolean.parseBoolean(splits[SELECTED_SPLITS]),Double.parseDouble(splits[CONECV_SPLITS]),
 				Double.parseDouble(splits[TRAPCV_SPLITS]), Double.parseDouble(splits[TRANSFCV_SPLITS]),
 				Double.parseDouble(splits[WH_SPLITS]),Double.parseDouble(splits[WV_SPLITS]),
 				rangesArr,rangeName,infoTypes,
 				Double.parseDouble(splits[FN_START_SPLITS]));
-		
-		return functionInfo;
 	}
 	
 	/**
 	 * @param args the command line arguments
 	 */
-	public static void main(String args[]) {
+	public static void main(String[] args) {
 		
 		// Command line args: if present, parse and run. Otherwise, run the GUI
 		if (! (args.length == 0)){
@@ -492,7 +425,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		browseDataButton.setText("Browse Data");
 		browseDataButton.addActionListener(new java.awt.event.ActionListener() {
 			public void actionPerformed(java.awt.event.ActionEvent evt) {
-				browseDataButtonActionPerformed(evt);
+				browseDataButtonActionPerformed();
 			}
 		});
 		browseDataButton.setToolTipText("Opens a file chooser to select the raw data files from which to extract. Selected files will be displayed in the table below");
@@ -765,21 +698,16 @@ public class CIUGenFrame extends javax.swing.JFrame {
 
 				// Set global booleans to match selection state of the box
 				if (source == trapcvCheckBox){
-					if (selected){ useTrapCV = true; }
-					else { useTrapCV = false;}
+					useTrapCV = selected;
 				} else if (source == transfcvCheckBox){
-					if (selected){ useTransfCV = true; }
-					else { useTransfCV = false;}
+					useTransfCV = selected;
 				} else if (source == conecvCheckBox){
-					if (selected){ useConeCV = true; }
-					else { useConeCV = false;}
+					useConeCV = selected;
 				} else if (source == whCheckBox){
-					if (selected){ useWaveht = true; }
-					else { useWaveht = false;}
+					useWaveht = selected;
 				} else if (source == wvCheckBox){
-					if (selected){ useWavevel = true; }
-					else { useWavevel = false;}
-				} 
+					useWavevel = selected;
+				}
 			}
 		};
 		checkBoxLabel = new javax.swing.JLabel();
@@ -1064,23 +992,22 @@ public class CIUGenFrame extends javax.swing.JFrame {
 
 		public void actionPerformed(ActionEvent e) {
 			if (e.getSource() == runButton_DT) {
-				runExtractorButton(e, IMExtractRunner.DT_MODE);
+				runExtractorButton(IMExtractRunner.DT_MODE);
 			} else if (e.getSource() == runButton_MZ){
-				runExtractorButton(e, IMExtractRunner.MZ_MODE);
+				runExtractorButton(IMExtractRunner.MZ_MODE);
 			} else if (e.getSource() == runButton_RT){
-				runExtractorButton(e, IMExtractRunner.RT_MODE);
+				runExtractorButton(IMExtractRunner.RT_MODE);
 			} else if (e.getSource() == runButton_CIU) {
-				runExtractorButton(e, IMExtractRunner.RTDT_MODE);
+				runExtractorButton(IMExtractRunner.RTDT_MODE);
 			}
 		}
 	}
 
 	/**
 	 * Opens filechooser for the user to choose the raw files they'd like to extract, then loads those
-	 * files into the function table using the getAllFunctionInfo parsing method. 
-	 * @param evt
+	 * files into the function table using the getAllFunctionInfo parsing method.
 	 */
-	private void browseDataButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_browseDataButtonActionPerformed
+	private void browseDataButtonActionPerformed() {//GEN-FIRST:event_browseDataButtonActionPerformed
 		// Clear the old raw data paths out of memory, if applicable
 		rawPaths.clear();
 		fnStarts.clear();
@@ -1112,8 +1039,8 @@ public class CIUGenFrame extends javax.swing.JFrame {
 
 	/**
 	 * Helper method that handles the actual opening of raw files for import into the table model. 
-	 * @param rawFiles
-	 * @param tblModel
+	 * @param rawFiles files to read
+	 * @param tblModel table of inputs from GUI
 	 */
 	private void openBrowsedData(File[] rawFiles, DefaultTableModel tblModel){
 		try {
@@ -1138,7 +1065,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 					System.out.println(".raw files only. Please press the Browse button again to pick .raw file(s)");
 				}
 
-				String[] splits = null;
+				String[] splits;
 				for( String function : functions )
 				{
 					splits = function.split(",");
@@ -1163,10 +1090,9 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	/**
 	 * Method to extract specified data when the user hits one of the data extraction/run buttons.
 	 * Determines which range/rule mode has been specified and passes the set of range/rule files
-	 * on to the loop helper. 
-	 * @param evt
+	 * on to the loop helper.
 	 */
-	private void runExtractorButton(java.awt.event.ActionEvent evt, int extractionMode){
+	private void runExtractorButton(int extractionMode){
 		// Make sure there is data in the table before running
 		if (functionsTable.getModel().getRowCount() == 0) {
 			JOptionPane.showMessageDialog(statusTextBar, "No data selected for analysis. \n"
@@ -1216,18 +1142,6 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		cleanRoot();
 	}  
 
-	/*
-	 * Execute the extraction loop - count through the range/rule files to be handled
-	 */
-//	private void runExtractionOld(File[] rangeORruleFiles, int extractionMode){	
-//		int counter = 0;
-//		for (File rangeFile : rangeORruleFiles){
-//			combinedLoopHelperOld(rangeFile, rangeORruleFiles.length, extractionMode);
-//			counter++;
-//			System.out.println("\n" + "Completed Range/Rule File " + counter + " of " + rangeORruleFiles.length + "\n");
-//		}
-//	}
-	
 	
 	/**
 	 * Handler for generating the output filename for extracted data. Handles combined or individual files
@@ -1235,9 +1149,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	 * handles creation of any folders necessary. Should be called before the creation of any ExtractSaves
 	 * (inside loops if they are). 
 	 * NOTE: uses the first range/raw file to name any combined files
-	 * @param rangeORruleFiles
-	 * @param allRawFunctions
-	 * @return 
+	 * @return filepath
 	 */
 	private String generateFilePath(File rangeFile, String rawName, int function, int extraction_mode){
 //		String rawName = function.getRawDataName();
@@ -1265,8 +1177,8 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	 * Method that parses between various ways of combining the extracted data into output file(s). 
 	 * Arranges data as requested by the various combine options, extracts, and sends extracted data to
 	 * be saved.  
-	 * @param rangeORruleFiles
-	 * @param extractionMode
+	 * @param rangeORruleFiles range files to use
+	 * @param extractionMode type of extraction (int)
 	 */
 	private void runExtraction(File[] rangeORruleFiles, int extractionMode){	
 		IMExtractRunner imextractRunner = IMExtractRunner.getInstance();
@@ -1276,11 +1188,11 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			// Range combine mode
 			if (combine_outputs) {
 				// single output for ALL files (range and raw)
-				ArrayList<MobData> allData = new ArrayList<MobData>();
+				ArrayList<MobData> allData = new ArrayList<>();
 				DataVectorInfoObject referenceFunc = null;
 				for (File rangeFile : rangeORruleFiles) {
 					// Read function information for this range file
-					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);
+					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile);
 					referenceFunc = allRawFunctions.get(0);
 
 					ArrayList<MobData> currentData = imextractRunner.extractMobiligramReturn(allRawFunctions, ruleMode, rangeFile, extractionMode, extract_in_ms);
@@ -1295,16 +1207,16 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			} else if (combine_outputs_by_rawname) {
 				// Combine by individual raw files AND range files. Create one save for each raw file after sorting
 				// First, count how many raw files we have
-				int numRawFiles = 0;
+				int numRawFiles;
 				File testRange = rangeORruleFiles[0];
-				ArrayList<DataVectorInfoObject> testRawFunctions = getFunctionsFromTable(testRange, extractionMode);
+				ArrayList<DataVectorInfoObject> testRawFunctions = getFunctionsFromTable(testRange);
 				ArrayList<ArrayList<DataVectorInfoObject>> testSortedFuncs = sortFuncsByFile(testRawFunctions);
 				numRawFiles = testSortedFuncs.size();
 
 				// Extract data
 				ExtractSave[] allSaves = new ExtractSave[numRawFiles];
 				for (File rangeFile : rangeORruleFiles) {
-					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);
+					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile);
 					ArrayList<ArrayList<DataVectorInfoObject>> allSortedFuncs = sortFuncsByFile(allRawFunctions);
 
 					// Extract each raw file and combine before saving
@@ -1337,18 +1249,18 @@ public class CIUGenFrame extends javax.swing.JFrame {
 				// First, count how many raw files we have
 				int numRawFiles = 0;
 				for (File rangeFile : rangeORruleFiles) {
-					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);
+					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile);
 					numRawFiles = allRawFunctions.size();
 				}
 
 				ExtractSave[] allSaves = new ExtractSave[numRawFiles];
 				for (File rangeFile : rangeORruleFiles) {
-					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);
+					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile);
 
 					// Extract each raw file and combine before saving
 					for (int index = 0; index < numRawFiles; index++) {
 						DataVectorInfoObject function = allRawFunctions.get(index);
-						ArrayList<DataVectorInfoObject> singleFunc = new ArrayList<DataVectorInfoObject>();
+						ArrayList<DataVectorInfoObject> singleFunc = new ArrayList<>();
 						singleFunc.add(function);
 
 						ArrayList<MobData> currentData = imextractRunner.extractMobiligramReturn(singleFunc, ruleMode, rangeFile, extractionMode, extract_in_ms);
@@ -1380,7 +1292,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			if (combine_outputs) {
 				// Combine by rawfile but NOT range file. Generates a csv for each range file
 				for (File rangeFile : rangeORruleFiles){
-					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);
+					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile);
 					ArrayList<MobData> allData = imextractRunner.extractMobiligramReturn(allRawFunctions, ruleMode, rangeFile, extractionMode, extract_in_ms);
 					String filePath = generateFilePath(rangeFile, allRawFunctions.get(0).getRawDataName(), allRawFunctions.get(0).getFunction(), extractionMode);
 					ExtractSave currentSave = new ExtractSave(allData, filePath, extractionMode, allRawFunctions.get(0), extract_in_ms);
@@ -1393,7 +1305,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			} else if (combine_outputs_by_rawname) {
 				
 				for (File rangeFile : rangeORruleFiles){
-					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);				
+					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile);
 					ArrayList<ArrayList<DataVectorInfoObject>> sortedFuncs = sortFuncsByFile(allRawFunctions);
 					int rawCounter = 1;
 					
@@ -1413,7 +1325,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			} else {
 				// do not combine any files - write every range/raw combination to separate file
 				for (File rangeFile: rangeORruleFiles){
-					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile, extractionMode);				
+					ArrayList<DataVectorInfoObject> allRawFunctions = getFunctionsFromTable(rangeFile);
 					int rawCounter = 1;
 					
 					for (DataVectorInfoObject function: allRawFunctions){
@@ -1442,8 +1354,8 @@ public class CIUGenFrame extends javax.swing.JFrame {
 
 	}
 	
-	private ArrayList<DataVectorInfoObject> getFunctionsFromTable(File rangeFile, int extraction_mode){
-		ArrayList<DataVectorInfoObject> allFunctions = new ArrayList<DataVectorInfoObject>();
+	private ArrayList<DataVectorInfoObject> getFunctionsFromTable(File rangeFile){
+		ArrayList<DataVectorInfoObject> allFunctions = new ArrayList<>();
 		
 		String rangePath = "";
 		try {
@@ -1482,7 +1394,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			rawName = (String)row.get(FILENAME_TABLE);
 			String rawDataPath = rawPaths.get(i);
 			double fnStart = fnStarts.get(i);
-			
+
 			File rawFile = new File(rawDataPath);
 			double conecv = (double) row.get(CONECV_TABLE);
 			double trapcv = (double)row.get(TRAPCV_TABLE);
@@ -1844,25 +1756,25 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	
 	/**
 	 * Sort an input list of functions by rawname so that all data from one raw file is grouped together.
-	 * @param allfuncs
-	 * @return
+	 * @param allfuncs input functions to sort
+	 * @return sorted list
 	 */
 	private ArrayList<ArrayList<DataVectorInfoObject>> sortFuncsByFile(ArrayList<DataVectorInfoObject> allfuncs){
-		ArrayList<ArrayList<DataVectorInfoObject>> sortedFuncs = new ArrayList<ArrayList<DataVectorInfoObject>>();
+		ArrayList<ArrayList<DataVectorInfoObject>> sortedFuncs;
 		
 		// Create a Map (dictionary) to hold found rawnames and lists of functions with them
-		HashMap<String, ArrayList<DataVectorInfoObject>> rawNameLists = new HashMap<String, ArrayList<DataVectorInfoObject>>();
+		HashMap<String, ArrayList<DataVectorInfoObject>> rawNameLists = new HashMap<>();
 		
 		for (DataVectorInfoObject func: allfuncs){
 			String rawname = func.getRawDataName();
 			
 			if (trimFinalUnderscore){
 				String[] splits = rawname.split("_");
-				String newRawname = "";
+				StringBuilder newRawname = new StringBuilder();
 				for (int i=0; i < splits.length - 1; i++){
-					newRawname = newRawname + splits[i];
+					newRawname.append(splits[i]);
 				}
-				rawname = newRawname;
+				rawname = newRawname.toString();
 			}
 			
 			if (rawNameLists.containsKey(rawname)){
@@ -1874,14 +1786,14 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			else 
 			{
 				// Raw file not yet present - create a new list for it
-				ArrayList<DataVectorInfoObject> currentList = new ArrayList<DataVectorInfoObject>();
+				ArrayList<DataVectorInfoObject> currentList = new ArrayList<>();
 				currentList.add(func);
 				rawNameLists.put(rawname, currentList);
 			}
 		}
 		
 		// Once all files have been sorted, return the sorted lists
-		sortedFuncs = new ArrayList<ArrayList<DataVectorInfoObject>>(rawNameLists.values());
+		sortedFuncs = new ArrayList<>(rawNameLists.values());
 		
 		return sortedFuncs;
 	}
@@ -1889,7 +1801,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	/**
 	 * Adjust range values to account for function start time
 	 * @param functionStartTime: start time of the function (minutes)
-	 * @param ranges: initial (unadjusted) ranges array
+	 * @param rangeVals: initial (unadjusted) ranges array
 	 * @param fileStartTime: start time of the overall file, read from fullDataRanges. Used to offset all start times
 	 */
 	private double[] adjustRangeVals(double functionStartTime, double[] rangeVals, double fileStartTime){
@@ -1897,9 +1809,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		double newEndTime = functionStartTime + rangeVals[IMExtractRunner.STOP_RT] + fileStartTime;
 		
 		double[] newRanges = new double[9];
-		for (int i = 0; i < rangeVals.length; i++){
-			newRanges[i] = rangeVals[i];
-		}
+		System.arraycopy(rangeVals, 0, newRanges, 0, rangeVals.length);
 		newRanges[IMExtractRunner.START_RT] = newStartTime;
 		newRanges[IMExtractRunner.STOP_RT] = newEndTime;
 		return newRanges;
@@ -1966,7 +1876,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 
 						// **************** Once files are ready, get the associated ranges to pass to the extractor *****************
 						File rangeFileTopFolder = new File(rangefolderpath);
-						File[] rangeFiles = null;
+						File[] rangeFiles;
 						if (ruleMode){
 							rangeFiles = rangeFileTopFolder.listFiles(new RuleFileFilter());
 						} else {
@@ -2054,17 +1964,17 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	 * be determined before function info can be gathered. 
 	 * NOTE: Only intentionally set up to work for Synapt HDMS (aka G1) and G2. Seems to
 	 * work fine for G2-S, has not been tested for G2-Si (for now)
-	 * @param rawDataPath
-	 * @return
+	 * @param rawDataPath path to raw file to find function info
+	 * @return  vector of function strings
 	 */
 	private static Vector<String> getAllFunctionInfo(String rawDataPath)
 	{
 		BufferedReader reader = null;
-		BufferedReader firstReader = null;
+		BufferedReader firstReader;
 
 		int numFunctions = 0;
 
-		Vector<String> functions = new  Vector<String>();
+		Vector<String> functions = new  Vector<>();
 
 		try 
 		{
@@ -2276,16 +2186,10 @@ public class CIUGenFrame extends javax.swing.JFrame {
 
 			reader.close();
 
-		} 
-		catch (FileNotFoundException ex) 
+		} catch (IOException ex)
 		{
 			ex.printStackTrace();
-		} 
-		catch (IOException ex) 
-		{
-			ex.printStackTrace();
-		} 
-		finally 
+		} finally
 		{
 			try 
 			{
