@@ -9,15 +9,16 @@ import ciugen.preferences.Preferences;
 import ciugen.utils.NumberUtils;
 
 import java.io.*;
+import java.lang.reflect.Array;
 import java.nio.ByteOrder;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.IntStream;
 
 /**
  * This file is part of TWIMExtract
@@ -186,7 +187,29 @@ public class IMExtractRunner {
         }
         return rangesArr;
     }
-    
+
+	/**
+	 * Read the root/ce.dat file and return the CV information. ce.dat file has individual CV values, 1 per line
+	 * and no other information
+	 * @return CV list
+	 */
+	private static ArrayList<Double> getCVfromCEdat() {
+    	ArrayList<Double> cvData = new ArrayList<>();
+    	File ceFile = new File(preferences.getROOT_PATH() + "\\_ce.dat");
+    	BufferedReader reader;
+    	try {
+    		reader = new BufferedReader(new FileReader(ceFile));
+    		String line;
+    		while ((line = reader.readLine()) != null){
+    			double cv = Double.parseDouble(line);
+    			cvData.add(cv);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return cvData;
+	}
+
     /**
      * Reads the data ranges from the specified file
      * FOR OLD RANGE FILE FORMAT (updated 11/30/16)
@@ -337,7 +360,7 @@ public class IMExtractRunner {
 	 * @param outputFilePath = where to write the output file
 	 * @param ruleMode = whether to use range files or rule files for extracting
 	 * @param ruleFile = the rule OR range file being used for the extraction
-	 * @param extraction_mode = the type of extraction to be done (DT, MZ, RT, or DTMZ)
+	 * @param extractionMode = the type of extraction to be done (DT, MZ, RT, or RTDT)
 	 */
 	public void extractMobiligramOneFile(ArrayList<DataVectorInfoObject> allFunctions, String outputFilePath, boolean ruleMode, File ruleFile, int extractionMode, boolean dt_in_ms){
 		String lineSep = System.getProperty("line.separator");
@@ -402,7 +425,7 @@ public class IMExtractRunner {
 			arraylines = rtWriteOutputs(allMobData, infoTypes);
 		} else {
 			double maxdt = 200; 	// if extracting in bins, maxdt = max bin
-			if (saveObj.getExtractionMode() == DT_MODE){
+			if (saveObj.getExtractionMode() == DT_MODE || saveObj.getExtractionMode() == RTDT_MODE){
 				if (saveObj.isDT_in_MS()){
 					// compute max DT using max m/z info from _extern.inf file
 					maxdt = get_max_dt(saveObj.getReferenceFunction().getRawDataPath());
@@ -435,45 +458,17 @@ public class IMExtractRunner {
 	 * @param ruleFile = the rule OR range file being used for the extraction
 	 * @param extraction_mode = the type of extraction to be done (DT, MZ, RT, or DTMZ)
 	 */
-	public ArrayList<MobData> extractMobiligram2D(ArrayList<DataVectorInfoObject> allFunctions, boolean ruleMode, File rangeFile, int extractionMode, boolean dt_in_ms){
+	public ArrayList<MobData> generateMobiligram2D(DataVectorInfoObject function, boolean ruleMode, File rangeFile, int extractionMode, boolean dt_in_ms){
 		// Collect mobData for all functions in the list
-		ArrayList<MobData> allMobData = new ArrayList<MobData>();
+		ArrayList<MobData> allMobData = new ArrayList<>();
 
 		if (extractionMode != RTDT_MODE){
 			System.out.println("ERROR: 2D extraction requested for non-2D mode. Returning no data");
 			return allMobData;
 		}
-		DataVectorInfoObject function = allFunctions.get(0);
-		String rawDataFilePath = function.getRawDataPath();
-		String rawName = function.getRawDataName();
-
-		int functionNum = function.getFunction();
-		double conecv = function.getConeCV();
-		double trapcv = function.getCollisionEnergy();
-		double transfcv = function.getTransfCV();
-		double wh = function.getWaveHeight();
-		double wv = function.getWaveVel();
-		double[] rangeVals = function.getRangeVals();
-		String rangeName = function.getRangeName();
-
-		double[][] data = null;
-		try {
-			data = generateReplicateMobiligram(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, rangeFile, ruleMode);
-		}
-		catch (FileNotFoundException ex)
-		{
-			ex.printStackTrace();
-		}
-		catch (IOException ex)
-		{
-			ex.printStackTrace();
-		}
-		if (data == null){
-			System.out.println("Error during extraction! Check your raw data - it might be empty or corrupted");
-		}
-
-		MobData currentMob = new MobData(data,rawName,rangeName,conecv,trapcv,transfcv,wh,wv);
-		allMobData.add(currentMob);
+//		DataVectorInfoObject function = allFunctions.get(0);
+		double maxDT = get_max_dt(function.getRawDataPath());
+		allMobData = generateReplicateRTDT(function, rangeFile, ruleMode, dt_in_ms, maxDT);
 
 		return allMobData;
 	}
@@ -490,49 +485,51 @@ public class IMExtractRunner {
 	public ArrayList<MobData> extractMobiligramReturn(ArrayList<DataVectorInfoObject> allFunctions, boolean ruleMode, File rangeFile, int extractionMode, boolean dt_in_ms){
 		// Collect mobData for all functions in the list
 		ArrayList<MobData> allMobData = new ArrayList<MobData>();
+		if (extractionMode == RTDT_MODE){
+			for (DataVectorInfoObject function : allFunctions) {
+				// TODO: fix or remove
+				allMobData = generateMobiligram2D(function, ruleMode, rangeFile, extractionMode, dt_in_ms);
+			}
+		} else {
+			for (DataVectorInfoObject function : allFunctions) {
+				String rawDataFilePath = function.getRawDataPath();
+				String rawName = function.getRawDataName();
 
-		for (DataVectorInfoObject function : allFunctions){
-			String rawDataFilePath = function.getRawDataPath();
-			String rawName = function.getRawDataName();
+				int functionNum = function.getFunction();
+				double conecv = function.getConeCV();
+				double trapcv = function.getCollisionEnergy();
+				double transfcv = function.getTransfCV();
+				double wh = function.getWaveHeight();
+				double wv = function.getWaveVel();
+				double[] rangeVals = function.getRangeVals();
+				String rangeName = function.getRangeName();
 
-			int functionNum = function.getFunction();
-			double conecv = function.getConeCV();
-			double trapcv = function.getCollisionEnergy();
-			double transfcv = function.getTransfCV();
-			double wh = function.getWaveHeight();
-			double wv = function.getWaveVel();
-			double[] rangeVals = function.getRangeVals();
-			String rangeName = function.getRangeName();
+				double[][] data = null;
+				try {
+					if (extractionMode == DT_MODE) {
+						data = generateReplicateMobiligram(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, rangeFile, ruleMode);
 
-			double[][] data = null;
-			try {
-				if (extractionMode == DT_MODE){
-					data = generateReplicateMobiligram(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, rangeFile, ruleMode);
-	
-				} else if (extractionMode == MZ_MODE){
-					data = generateReplicateSpectrum(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, rangeFile, ruleMode);
-	
-				} else if (extractionMode == RT_MODE){
-					data = generateReplicateChromatogram(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, rangeFile, ruleMode);
-	
-				} else if (extractionMode == DTMZ_MODE){
-					//    				data = generateReplicateDTMZ(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, ruleFile, ruleMode);
+					} else if (extractionMode == MZ_MODE) {
+						data = generateReplicateSpectrum(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, rangeFile, ruleMode);
+
+					} else if (extractionMode == RT_MODE) {
+						data = generateReplicateChromatogram(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, rangeFile, ruleMode);
+
+					} else if (extractionMode == DTMZ_MODE) {
+						//    				data = generateReplicateDTMZ(rawDataFilePath, functionNum, 0, true, rangeVals, rangeName, ruleFile, ruleMode);
+					}
+				} catch (FileNotFoundException ex) {
+					ex.printStackTrace();
+				} catch (IOException ex) {
+					ex.printStackTrace();
 				}
+				if (data == null) {
+					System.out.println("Error during extraction! Check your raw data - it might be empty or corrupted");
+				}
+
+				MobData currentMob = new MobData(data, rawName, rangeName, conecv, trapcv, transfcv, wh, wv);
+				allMobData.add(currentMob);
 			}
-			catch (FileNotFoundException ex) 
-			{
-				ex.printStackTrace();
-			} 
-			catch (IOException ex) 
-			{
-				ex.printStackTrace();
-			}
-			if (data == null){
-				System.out.println("Error during extraction! Check your raw data - it might be empty or corrupted");
-			}
-			
-			MobData currentMob = new MobData(data,rawName,rangeName,conecv,trapcv,transfcv,wh,wv);
-			allMobData.add(currentMob);
 		}
 		return allMobData;
 	}
@@ -634,8 +631,8 @@ public class IMExtractRunner {
 	/**
 	 * Method to change the DT information of the first MobData array ONLY in a list of mobdata.
 	 * Converts to DT using information from file's _extern.inf. 
-	 * @param allmobdata
-	 * @return
+	 * @param allmobdata arraylist of mobdata containers
+	 * @return updated mobdata
 	 */
 	private ArrayList<MobData> convert_mobdata_to_ms(ArrayList<MobData> allmobdata, double maxDT){		
 		// Convert each bin to drift time ((bin - 1) * max_dt / 199)
@@ -644,9 +641,22 @@ public class IMExtractRunner {
 		// to a drift time of 0 (millisecond DTs are 0-indexed, whereas bin numbers are 1-indexed, so all
 		// bins have 1 subtracted from them to be converted correctly)
 		for (int i=0; i < allmobdata.get(0).getMobdata().length; i++){
-			allmobdata.get(0).getMobdata()[i][0] = (allmobdata.get(0).getMobdata()[i][0] - 1) * maxDT / 199;
+			allmobdata.get(0).getMobdata()[i][0] = convertBinToDT(allmobdata.get(0).getMobdata()[i][0], maxDT);
 		}
 		return allmobdata;
+	}
+
+	/**
+	 * Convert bin to DT (ms). NOTE: For some reason, there are actually only 199 bins, not 200. Doing the conversion by
+	 * dividing by 199 gives results that match the output from Driftscope/MassLynx. Bin 1 is set
+	 * to a drift time of 0 (millisecond DTs are 0-indexed, whereas bin numbers are 1-indexed, so all
+	 * bins have 1 subtracted from them to be converted correctly)
+	 * @param inputBin starting bin number
+	 * @param maxDT max DT of the acquisition (ms)
+	 * @return DT in ms
+	 */
+	private static double convertBinToDT(double inputBin, double maxDT) {
+		return (inputBin - 1) * maxDT / 199;
 	}
 	
 	/**
@@ -1055,6 +1065,79 @@ public class IMExtractRunner {
 		return data;
 	}
 
+	private static ArrayList<MobData> generateReplicateRTDT(DataVectorInfoObject function, File rangeFile, boolean ruleMode, boolean dt_in_ms, double maxDT){
+
+		/* RTDT (2D) */
+		// Write range file for IMExtract.exe
+		StringBuilder cmdarray = new StringBuilder();
+		try
+		{
+			cmdarray.append(function.getRangeVals()[START_MZ]).append(" ").append(function.getRangeVals()[STOP_MZ]).append(" 1").append(System.getProperty("line.separator"));
+			cmdarray.append(function.getRangeVals()[START_RT]).append(" ").append(function.getRangeVals()[STOP_RT]).append(" ").append(String.format("%d", (int) rtBins)).append(System.getProperty("line.separator"));
+			cmdarray.append(function.getRangeVals()[START_DT]).append(" ").append(function.getRangeVals()[STOP_DT]).append(" ").append(String.format("%d", (int) dtBins)).append(System.getProperty("line.separator"));
+
+			File dtRangeFile = new File(preferences.getLIB_PATH() + "\\ranges_2dRTDT.txt");
+			BufferedWriter writer = new BufferedWriter(new FileWriter(dtRangeFile));
+			writer.write(cmdarray.toString());
+			writer.flush();
+			writer.close();
+		}
+		catch(Exception ex)
+		{
+			ex.printStackTrace();
+			return null;
+		}
+
+		// Run IMExtract.exe
+		String path = null;
+		String replicateID = function.getRangeName() + "_" + function.getRawDataName() + "_" + function.getFunction() + "[" + function.getRangeVals()[START_DT] + "_" + function.getRangeVals()[STOP_DT]  + "]";
+		try
+		{
+			path = root.getPath() + File.separator + replicateID + ".csv";
+			cmdarray.setLength(0);
+			cmdarray.append(exeFile.getCanonicalPath()).append(" ");
+			cmdarray.append("-d ");
+			cmdarray.append("\"").append(function.getRawDataPath()).append("\" ");
+//			cmdarray.append("-f ").append(function.getFunction()).append(" ");
+			cmdarray.append("-o ");
+			cmdarray.append("\"").append(path).append("\" ");
+			cmdarray.append("-t ");
+			cmdarray.append("mobilicube ");
+			cmdarray.append("-p ");
+			cmdarray.append("\"").append(preferences.getLIB_PATH()).append("\\ranges_2dRTDT.txt\" ");
+			if (ruleMode) {
+				cmdarray.append(" -pdtmz ");
+				cmdarray.append("\"").append(rangeFile.getAbsolutePath()).append("\"");
+			}
+			cmdarray.append("-textOut 1");
+			runIMSExtract(cmdarray.toString());
+		}
+		catch( Exception ex )
+		{
+			ex.printStackTrace();
+		}
+		ArrayList<Double> cv_axis = getCVfromCEdat();
+		int[] dt_axis_base = IntStream.rangeClosed(1, 200).toArray();
+		ArrayList<Double> dtAxisList = new ArrayList<>();
+		// convert DT to ms if requested
+		for (int dtBin : dt_axis_base) {
+			double finalDt = dtBin;		// todo - check this - no need to convert because we make people enter DT range in bins (?)
+//			if (dt_in_ms) {
+//				finalDt = convertBinToDT(dtBin, maxDT);
+//			}
+			if (finalDt >= function.getRangeVals()[START_DT] && finalDt <= function.getRangeVals()[STOP_DT]) {
+				dtAxisList.add(finalDt);
+			}
+		}
+		double[] dt_axis = new double[dtAxisList.size()];
+		for (int i=0; i < dtAxisList.size(); i++) {
+			dt_axis[i] = dtAxisList.get(i);
+		}
+
+		// Read data from IMExtract.exe and return it
+		return getTextData(path, dt_axis, cv_axis, function);
+	}
+
 	    /**
 	     * Generate a mz data set. We sum over all masses and drift times to generate
 	     * a 1 dimensional dataset.
@@ -1321,7 +1404,53 @@ public class IMExtractRunner {
         return path;
     }
 
-    
+	/**
+	 * For methods that return text data instead of binary, use this to read the resulting output file.
+	 * (this is very convoluted, but allows this method to use all the existing print/etc code so..)
+	 * @param path path to output file
+	 * @return 2D data array
+	 */
+	private static ArrayList<MobData> getTextData(String path, double[] dt_axis, ArrayList<Double> cv_axis, DataVectorInfoObject function) {
+		ArrayList<MobData> allMobData = new ArrayList<>();
+
+		// Open the text file to read
+		File textFile = new File(path);
+		textFile.deleteOnExit();
+		if( !textFile.exists() ) {
+			return null;
+		}
+
+		// Read file
+		try {
+			BufferedReader reader = new BufferedReader(new FileReader(textFile));
+			String line;
+			int cvIndex = 0;
+			while((line = reader.readLine()) != null) {
+				// Lines are transposed (each row is all DTs from a given CV)
+				String[] splits = line.split(",");
+				double[][] data = new double[dt_axis.length][2];
+
+				// Add dt axis into data array
+				for (int i=0; i < dt_axis.length; i++) {
+					data[i][0] = dt_axis[i];
+				}
+				// Read intensity into into data array
+				for (int i=0; i < splits.length; i++){
+					data[i][1] = Double.parseDouble(splits[i]);
+				}
+
+				// Generate this mobdata
+				MobData currentMob = new MobData(data, function.getRawDataName(), function.getRangeName(), function.getConeCV(), cv_axis.get(cvIndex), function.getTransfCV(), function.getWaveHeight(), function.getWaveVel());
+				allMobData.add(currentMob);
+				cvIndex++;
+			}
+			reader.close();
+		} catch (IOException ex) {
+			System.out.println("Error: could not find text file to extract. No data returned " + path);
+			return null;
+		}
+		return allMobData;
+	}
 
 
     private synchronized static double[][] getTraceData(String path, int nType, double[] rangeVals) throws FileNotFoundException, IOException

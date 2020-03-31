@@ -69,12 +69,12 @@ public class RawFileFilter
 	  return bAccept;
   }
   
-  //Determine if the file is a 1dRT file and accept it if so
+  //Determine if the file is a 1dRT or 2dRTDT file and accept it if so
   public static boolean acceptRT(File file){
 	  String filename = file.getName().toLowerCase();
 	  boolean bAccept = false;  
 	  try{
-		  if (filename.substring(filename.lastIndexOf(".")).equals(".1drt")){
+		  if (filename.substring(filename.lastIndexOf(".")).equals(".1drt") || filename.substring(filename.lastIndexOf(".")).equals(".2drtdt")){
 			  bAccept = true;
 		  } 
 		  // Catch a bad string location since the filename test is pretty rough cut. If an exception
@@ -84,6 +84,20 @@ public class RawFileFilter
 		  return bAccept;
 	  }
 	  return bAccept;
+  }
+  public static boolean acceptMRM(File file) {
+      String filename = file.getName().toLowerCase();
+      boolean bAccept = false;
+      try{
+          if (filename.substring(filename.lastIndexOf(".") - 1).equals("].csv") ){
+              bAccept = true;
+          }
+          // Catch a bad string location since the filename test is pretty rough cut. If an exception
+          // happens, it's definitely not a .1dRT file.
+      } catch (StringIndexOutOfBoundsException ex){
+          return false;
+      }
+      return bAccept;
   }
   
   public String getDescription()

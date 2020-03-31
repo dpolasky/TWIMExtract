@@ -9,7 +9,6 @@ import ciugen.preferences.Preferences;
 import ciugen.ui.utils.RawFileFilter;
 import ciugen.ui.utils.RuleFileFilter;
 import ciugen.ui.utils.TextFileFilter;
-import ciugen.ui.Options;
 
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -23,7 +22,6 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Vector;
 
 import javax.swing.BorderFactory;
@@ -559,10 +557,10 @@ public class CIUGenFrame extends javax.swing.JFrame {
 
 		// initialize the various extract data (run) buttons
 		initRunButtons();
-		runPanel.add(runButton_CIU);
 		runPanel.add(runButton_MZ);
 		runPanel.add(runButton_DT);
 		runPanel.add(runButton_RT);
+		runPanel.add(runButton_CIU);
 		jPanel3.add(runPanel, java.awt.BorderLayout.EAST);
 
 		// Initialize check boxes
@@ -585,12 +583,6 @@ public class CIUGenFrame extends javax.swing.JFrame {
 
 
 	private void initRunButtons(){
-		runButton_CIU.addActionListener(runButtonActionListener);
-		runButton_CIU.setText("Extract CIU");
-		runButton_CIU.setToolTipText("Extracts 2D (RT/DT) information to make a CIU plot. Faster than DT extraction for CIU. " +
-				"MRM CIU mode must use this option. NOTE: Combine_by_raw is the ONLY combine option allowed for this mode and will " +
-				"be selected automatically.");
-
 		runButton_DT.addActionListener(runButtonActionListener);
 		runButton_DT.setText("Extract DT");
 		runButton_DT.setToolTipText("Extracts a 1-dimensional drift time distribution (collapses all MS and RT information). "
@@ -605,6 +597,12 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		runButton_RT.setText("Extract RT");
 		runButton_RT.setToolTipText("Extracts a 1-dimensional retention time chromatogram (collapses all MZ and DT information). "
 				+ "Will open a dialog to select the range or rule file with the range(s) to extract.");
+
+		runButton_CIU.addActionListener(runButtonActionListener);
+		runButton_CIU.setText("MRM CIU");
+		runButton_CIU.setToolTipText("Extracts 2D (RT/DT) information to make a CIU plot from MRM CIU data. Will NOT work for" +
+				" non-MRM CIU data! If multiple m/z ranges are desired, they MUST BE SPECIFIED FOR EACH FUNCTION INDIVIDUALLY (use " +
+				"the check boxes in the table to select functions one-by-one).");
 	}
 
 
@@ -1177,6 +1175,15 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			return;
 		}
 
+		// mandate not combining for CIU 2D extractions (each function/rangefile is an entire CIU fingerprint)
+		if (extractionMode == IMExtractRunner.RTDT_MODE) {
+			combine_outputs = false;
+			combine_outputs_by_rawname = false;
+			combine_ranges = false;
+			rangeCombineTextField.setText("    No    ");
+			combineModeTextField.setText("      No   ");
+		}
+
 		statusTextBar.setText("...Analyzing Data (may take a minute)...");
 		System.out.println("Analyzing data (may take some time)");
 		
@@ -1259,7 +1266,6 @@ public class CIUGenFrame extends javax.swing.JFrame {
 	 * Arranges data as requested by the various combine options, extracts, and sends extracted data to
 	 * be saved.  
 	 * @param rangeORruleFiles
-	 * @param allRawFunctions
 	 * @param extractionMode
 	 */
 	private void runExtraction(File[] rangeORruleFiles, int extractionMode){	
@@ -1392,12 +1398,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 					int rawCounter = 1;
 					
 					for (ArrayList<DataVectorInfoObject> rawFuncs: sortedFuncs){
-						ArrayList<MobData> allData;
-						if (extractionMode != IMExtractRunner.RTDT_MODE) {
-							allData = imextractRunner.extractMobiligramReturn(rawFuncs, ruleMode, rangeFile, extractionMode, extract_in_ms);
-						} else {
-							allData = imextractRunner.extractMobiligram2D(rawFuncs, ruleMode, rangeFile, extractionMode, extract_in_ms);
-						}
+						ArrayList<MobData> allData = imextractRunner.extractMobiligramReturn(rawFuncs, ruleMode, rangeFile, extractionMode, extract_in_ms);
 						String filePath = generateFilePath(rangeFile, rawFuncs.get(0).getRawDataName(), rawFuncs.get(0).getFunction(), extractionMode);
 						ExtractSave currentSave = new ExtractSave(allData, filePath, extractionMode, rawFuncs.get(0), extract_in_ms);
 						imextractRunner.writeExtractSave(currentSave);
@@ -1418,7 +1419,12 @@ public class CIUGenFrame extends javax.swing.JFrame {
 					for (DataVectorInfoObject function: allRawFunctions){
 						ArrayList<DataVectorInfoObject> singleFunc = new ArrayList<DataVectorInfoObject>();
 						singleFunc.add(function);
-						ArrayList<MobData> allData = imextractRunner.extractMobiligramReturn(singleFunc, ruleMode, rangeFile, extractionMode, extract_in_ms);
+						ArrayList<MobData> allData; 	// = imextractRunner.extractMobiligramReturn(singleFunc, ruleMode, rangeFile, extractionMode, extract_in_ms);
+						if (extractionMode != IMExtractRunner.RTDT_MODE) {
+							allData = imextractRunner.extractMobiligramReturn(singleFunc, ruleMode, rangeFile, extractionMode, extract_in_ms);
+						} else {
+							allData = imextractRunner.generateMobiligram2D(function, ruleMode, rangeFile, extractionMode, extract_in_ms);
+						}
 
 						String filePath = generateFilePath(rangeFile, function.getRawDataName(), function.getFunction(), extractionMode);
 						ExtractSave currentSave = new ExtractSave(allData, filePath, extractionMode, function, extract_in_ms);
@@ -2023,7 +2029,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 		
 		// Only delete IMSExtract binary files (.1dDT, .1dMZ, and .1dRT)
 		for( File f : allFiles )
-			if (RawFileFilter.acceptdDT(f) || RawFileFilter.acceptMZ(f) || RawFileFilter.acceptRT(f)){
+			if (RawFileFilter.acceptdDT(f) || RawFileFilter.acceptMZ(f) || RawFileFilter.acceptRT(f) || RawFileFilter.acceptMRM(f)){
 				f.delete();
 			}
 
