@@ -649,6 +649,10 @@ public class IMExtractRunner {
 		if (infoTypes[USECONE_TYPES]){
 			lines.add("$ConeCV:"); 
 			HEADER_LENGTH++;
+			// sort by cone if trap is not active
+			if (! infoTypes[USETRAP_TYPES]) {
+				allMobData.sort(Comparator.comparingInt(d -> (int) d.getConeCV()));
+			}
 		}
 		if (infoTypes[USETRAP_TYPES]){
 			lines.add("$TrapCV:"); 
@@ -658,6 +662,10 @@ public class IMExtractRunner {
 		if (infoTypes[USETRANSF_TYPES]){
 			lines.add("$TransferCV:");
 			HEADER_LENGTH++;
+			// sort by transfer if trap is not active
+			if (! infoTypes[USETRAP_TYPES]) {
+				allMobData.sort(Comparator.comparingInt(d -> (int) d.getTransferCV()));
+			}
 		}
 		if (infoTypes[USEWH_TYPES]){
 			lines.add("$WaveHt:"); 

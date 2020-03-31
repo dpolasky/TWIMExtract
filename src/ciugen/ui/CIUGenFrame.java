@@ -1988,7 +1988,11 @@ public class CIUGenFrame extends javax.swing.JFrame {
 				if( firstline.toUpperCase().startsWith("ACQUISITION DEVICE") ){
 					// G1 doesn't have this line, so we know we're using a G2 if it appears
 					instrumentType = 1;
-				}   
+				} else if (firstline.startsWith("Cyclic.")) {
+					// Only the cyclic has this line so we know this must a cyclic if it appears. Break to prevent overwriting with G2 line
+					instrumentType = 2;
+					break;
+				}
 				firstline = firstReader.readLine();
 			}
 			firstReader.close();
@@ -2022,26 +2026,26 @@ public class CIUGenFrame extends javax.swing.JFrame {
 					if( line.toUpperCase().startsWith("IMS WAVE VELOCITY") ){
 						splits = line.split("\\t");
 						String strWaveVel = splits[splits.length - 1];
-						wv = new Double(strWaveVel);
+						wv = Double.parseDouble(strWaveVel);
 					} if( line.toUpperCase().startsWith("IMS WAVE HEIGHT")){
 						splits = line.split("\\t");
 						String strWaveHt = splits[splits.length - 1];
-						wh = new Double(strWaveHt);
+						wh = Double.parseDouble(strWaveHt);
 					} 
 
 					// Record the manual trap/transfer/cone settings, only use if that info can't be found in the function
 					if (line.startsWith("Sampling Cone") && !reachedFunctions){
 						splits = line.split("\\t");
 						String strCE = splits[splits.length - 1];
-						manualCone = new Double(strCE);
+						manualCone = Double.parseDouble(strCE);
 					} if (line.startsWith("Trap Collision Energy") && !reachedFunctions){
 						splits = line.split("\\t");
 						String strCE = splits[splits.length - 1];
-						manualTrap = new Double(strCE);
+						manualTrap = Double.parseDouble(strCE);
 					} if (line.startsWith("Transfer Collision Energy") && !reachedFunctions){
 						splits = line.split("\\t");
 						String strCE = splits[splits.length - 1];
-						manualTransf = new Double(strCE);
+						manualTransf = Double.parseDouble(strCE);
 					} 
 
 					// wait until we've reached the function information to start recording collision voltage values
@@ -2180,9 +2184,90 @@ public class CIUGenFrame extends javax.swing.JFrame {
 				String function = numFunctions + ",true" + "," + coneCV + "," + trapCV + "," + transfCV + "," + wh + "," + wv + "," + fnStartTime; 
 				functions.add(function);	
 
+			} else if (instrumentType == 2) {
+				// CYCLIC INSTRUMENT
+
+				// Read through the file for function information
+				while( line != null ){
+//					// Determine non-function parameters (Wave ht, wave vel)
+//					if( line.toUpperCase().startsWith("IMS WAVE VELOCITY") ){
+//						splits = line.split("\\t");
+//						String strWaveVel = splits[splits.length - 1];
+//						wv = Double.parseDouble(strWaveVel);
+//					} if( line.toUpperCase().startsWith("IMS WAVE HEIGHT")){
+//						splits = line.split("\\t");
+//						String strWaveHt = splits[splits.length - 1];
+//						wh = Double.parseDouble(strWaveHt);
+//					}
+
+					// Record the manual trap/transfer/cone settings, only use if that info can't be found in the function
+					if (line.startsWith("Stepwave.SampleConeVoltage.Setting") && !reachedFunctions){
+						splits = line.split("\\t");
+						String strCE = splits[splits.length - 1];
+						manualCone = Double.parseDouble(strCE);
+					} if (line.startsWith("Trap.TrappingVoltage.Setting") && !reachedFunctions){
+						splits = line.split("\\t");
+						String strCE = splits[splits.length - 1];
+						manualTrap = Double.parseDouble(strCE);
+					} if (line.startsWith("Transfer.TrappingVoltage.Setting") && !reachedFunctions){
+						splits = line.split("\\t");
+						String strCE = splits[splits.length - 1];
+						manualTransf = Double.parseDouble(strCE);
+					}
+
+					// wait until we've reached the function information to start recording collision voltage values
+					if(line.toUpperCase().startsWith("FUNCTION PARAMETERS") ){
+						if (reachedFunctions){
+							// This is not the first function, so write out the previous function info and start fresh
+							String function = numFunctions + ",true" + "," + coneCV + "," + trapCV + "," + transfCV + "," + wh + "," + wv + "," + fnStartTime;
+							functions.add(function);
+						} else {
+							reachedFunctions = true;
+						}
+						numFunctions++;
+					}
+
+					// Record CV information. It will be exported to a function when we reach the next function or end of the file. Handles several types of names
+					if( line.startsWith("Using Auto Trap MS Collision Energy") && reachedFunctions){
+						splits = line.split("\\t");
+						String strCE = splits[splits.length - 1];
+						trapCV = Double.parseDouble(strCE);
+					} if ( line.startsWith("Using Auto Transfer MS Collision Energy") && reachedFunctions){
+						splits = line.split("\\t");
+						String strCE = splits[splits.length - 1];
+						transfCV = Double.parseDouble(strCE);
+					}
+					// todo: not sure what this is called yet
+					if (line.startsWith("Cone Voltage (V)") && reachedFunctions){
+						splits = line.split("\\t");
+						String strCE = splits[splits.length - 1];
+						coneCV = Double.parseDouble(strCE);
+					} if (line.startsWith("Start Time") && reachedFunctions){
+						splits = line.split("\\t");
+						String stTime = splits[splits.length - 1];
+						fnStartTime = Double.parseDouble(stTime) / 60.0;	// cyclic reports time in seconds, not minutes - so convert to min
+					}
+
+					// Catch empty collision energies and read in from the non-function entries if so
+					if (trapCV == -1.0){
+						// No trap information read, use manual info from top of file
+						trapCV = manualTrap;
+					} if (transfCV == -1.0){
+						transfCV = manualTransf;
+					} if (coneCV == -1.0){
+						coneCV = manualCone;
+					}
+
+					line = reader.readLine();
+				}
+
+				// Output the final function information to a function
+				String function = numFunctions + ",true" + "," + coneCV + "," + trapCV + "," + transfCV + "," + wh + "," + wv + "," + fnStartTime;
+				functions.add(function);
+
 			} else {
 				System.out.println("Instrument type not determined, unable to extract function information");
-			}  
+			}
 
 			reader.close();
 
