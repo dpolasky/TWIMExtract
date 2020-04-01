@@ -1989,7 +1989,7 @@ public class CIUGenFrame extends javax.swing.JFrame {
 					// G1 doesn't have this line, so we know we're using a G2 if it appears
 					instrumentType = 1;
 				} else if (firstline.startsWith("Cyclic.")) {
-					// Only the cyclic has this line so we know this must a cyclic if it appears. Break to prevent overwriting with G2 line
+					// Only the cyclic has this line so we know this must be a cyclic if it appears. Break to prevent overwriting with G2 line
 					instrumentType = 2;
 					break;
 				}
@@ -2010,9 +2010,9 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			double wv = -1.0;
 
 			// Manual values at top of the file - initialize and record, to be used if info is not in the function parameters section
-			double manualTrap = 0.0;
-			double manualTransf = 0.0;
-			double manualCone = 0.0;
+			double manualTrap = -1.0;
+			double manualTransf = -1.0;
+			double manualCone = -1.0;
 			
 			double fnStartTime = -1.0;
 
@@ -2050,35 +2050,33 @@ public class CIUGenFrame extends javax.swing.JFrame {
 
 					// wait until we've reached the function information to start recording collision voltage values
 					if(line.toUpperCase().startsWith("FUNCTION PARAMETERS") ){
-						splits = line.split("\\t");
 						if (reachedFunctions){
 							// This is not the first function, so write out the previous function info and start fresh
 							String function = numFunctions + ",true" + "," + coneCV + "," + trapCV + "," + transfCV + "," + wh + "," + wv + "," + fnStartTime; 
 							functions.add(function);
-							numFunctions++;
 						} else {
 							reachedFunctions = true;
-							numFunctions++;
-						}              
+						}
+						numFunctions++;
 					} 
 
 					// Record CV information. It will be exported to a function when we reach the next function or end of the file. Handles several types of names
 					if( line.startsWith("Trap Collision Energy (eV)") && reachedFunctions){
 						splits = line.split("\\t");
 						String strCE = splits[splits.length - 1];
-						trapCV = new Double(strCE);
+						trapCV = Double.parseDouble(strCE);
 					} if ( line.startsWith("Transfer Collision Energy (eV)") && reachedFunctions){
 						splits = line.split("\\t");
 						String strCE = splits[splits.length - 1];
-						transfCV = new Double(strCE);
+						transfCV = Double.parseDouble(strCE);
 					} if (line.startsWith("Cone Voltage (V)") && reachedFunctions){
 						splits = line.split("\\t");
 						String strCE = splits[splits.length - 1];
-						coneCV = new Double(strCE);
+						coneCV = Double.parseDouble(strCE);
 					} if (line.startsWith("Start Time (mins)") && reachedFunctions){
 						splits = line.split("\\t");
 						String stTime = splits[splits.length - 1];
-						fnStartTime = new Double(stTime);
+						fnStartTime = Double.parseDouble(stTime);
 					}
 
 					// Last line of all files is always "calibration". If we've reached that line with no 
@@ -2110,25 +2108,25 @@ public class CIUGenFrame extends javax.swing.JFrame {
 					if( line.toUpperCase().startsWith("IMS WAVE VELOCITY") ){
 						splits = line.split("\\t");
 						String strWaveVel = splits[splits.length - 1];
-						wv = new Double(strWaveVel);
+						wv = Double.parseDouble(strWaveVel);
 					} if( line.toUpperCase().startsWith("IMS WAVE HEIGHT")){
 						splits = line.split("\\t");
 						String strWaveHt = splits[splits.length - 1];
-						wh = new Double(strWaveHt);
+						wh = Double.parseDouble(strWaveHt);
 					}     
 					// Record the manual trap/transfer/cone settings, only use if that info can't be found in the function
 					if (line.startsWith("Sampling Cone") && !reachedFunctions){
 						splits = line.split("\\t");
 						String strCE = splits[splits.length - 1];
-						manualCone = new Double(strCE);
+						manualCone = Double.parseDouble(strCE);
 					} if (line.startsWith("Trap Collision Energy") && !reachedFunctions){
 						splits = line.split("\\t");
 						String strCE = splits[splits.length - 1];
-						manualTrap = new Double(strCE);
+						manualTrap = Double.parseDouble(strCE);
 					} if (line.startsWith("Transfer Collision Energy") && !reachedFunctions){
 						splits = line.split("\\t");
 						String strCE = splits[splits.length - 1];
-						manualTransf = new Double(strCE);
+						manualTransf = Double.parseDouble(strCE);
 					} 
 
 
@@ -2150,19 +2148,19 @@ public class CIUGenFrame extends javax.swing.JFrame {
 					if( line.startsWith("Collision Energy (eV)") && reachedFunctions){
 						splits = line.split("\\t");
 						String strCE = splits[splits.length - 1];
-						trapCV = new Double(strCE);
+						trapCV = Double.parseDouble(strCE);
 					} if (line.startsWith("Collision Energy2 (eV)") && reachedFunctions){
 						splits = line.split("\\t");
 						String strCE = splits[splits.length - 1];
-						transfCV = new Double(strCE);
+						transfCV = Double.parseDouble(strCE);
 					} if (line.startsWith("Cone Voltage (V)") && reachedFunctions){
 						splits = line.split("\\t");
 						String strCE = splits[splits.length - 1];
-						coneCV = new Double(strCE);
+						coneCV = Double.parseDouble(strCE);
 					} if (line.startsWith("Start Time (mins)") && reachedFunctions){
 						splits = line.split("\\t");
 						String stTime = splits[splits.length - 1];
-						fnStartTime = new Double(stTime);
+						fnStartTime = Double.parseDouble(stTime);
 					}
 					// Last line of all files is always "calibration". If we've reached that line with no 
 					// collision information, read it from the top
@@ -2185,31 +2183,31 @@ public class CIUGenFrame extends javax.swing.JFrame {
 				functions.add(function);	
 
 			} else if (instrumentType == 2) {
-				// CYCLIC INSTRUMENT
+				// CYCLIC IM INSTRUMENT
 
 				// Read through the file for function information
 				while( line != null ){
-//					// Determine non-function parameters (Wave ht, wave vel)
-//					if( line.toUpperCase().startsWith("IMS WAVE VELOCITY") ){
-//						splits = line.split("\\t");
-//						String strWaveVel = splits[splits.length - 1];
-//						wv = Double.parseDouble(strWaveVel);
-//					} if( line.toUpperCase().startsWith("IMS WAVE HEIGHT")){
-//						splits = line.split("\\t");
-//						String strWaveHt = splits[splits.length - 1];
-//						wh = Double.parseDouble(strWaveHt);
-//					}
+					// Determine non-function parameters (Wave ht, wave vel)
+					if( line.startsWith("Cyclic.RaceTWVelocity.Setting") ){
+						splits = line.split("\\t");
+						String strWaveVel = splits[splits.length - 1];
+						wv = Double.parseDouble(strWaveVel);
+					} if( line.startsWith("Cyclic.RaceTWHeight.Setting")){
+						splits = line.split("\\t");
+						String strWaveHt = splits[splits.length - 1];
+						wh = Double.parseDouble(strWaveHt);
+					}
 
 					// Record the manual trap/transfer/cone settings, only use if that info can't be found in the function
 					if (line.startsWith("Stepwave.SampleConeVoltage.Setting") && !reachedFunctions){
 						splits = line.split("\\t");
 						String strCE = splits[splits.length - 1];
 						manualCone = Double.parseDouble(strCE);
-					} if (line.startsWith("Trap.TrappingVoltage.Setting") && !reachedFunctions){
+					} if (line.startsWith("Instrument.CollisionEnergy.Setting") && !reachedFunctions){
 						splits = line.split("\\t");
 						String strCE = splits[splits.length - 1];
 						manualTrap = Double.parseDouble(strCE);
-					} if (line.startsWith("Transfer.TrappingVoltage.Setting") && !reachedFunctions){
+					} if (line.startsWith("Instrument.CollisionEnergyTransfer.Setting") && !reachedFunctions){
 						splits = line.split("\\t");
 						String strCE = splits[splits.length - 1];
 						manualTransf = Double.parseDouble(strCE);
@@ -2237,12 +2235,13 @@ public class CIUGenFrame extends javax.swing.JFrame {
 						String strCE = splits[splits.length - 1];
 						transfCV = Double.parseDouble(strCE);
 					}
-					// todo: not sure what this is called yet
-					if (line.startsWith("Cone Voltage (V)") && reachedFunctions){
-						splits = line.split("\\t");
-						String strCE = splits[splits.length - 1];
-						coneCV = Double.parseDouble(strCE);
-					} if (line.startsWith("Start Time") && reachedFunctions){
+					// todo: not sure what this is called (or if it's possible)
+//					if (line.startsWith("Stepwave.SampleConeVoltage.Setting") && reachedFunctions){
+//						splits = line.split("\\t");
+//						String strCE = splits[splits.length - 1];
+//						coneCV = Double.parseDouble(strCE);
+//					}
+					if (line.startsWith("Start Time") && reachedFunctions){
 						splits = line.split("\\t");
 						String stTime = splits[splits.length - 1];
 						fnStartTime = Double.parseDouble(stTime) / 60.0;	// cyclic reports time in seconds, not minutes - so convert to min

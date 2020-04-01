@@ -24,3 +24,10 @@ unins000.exe
 unins000.dat
 out/lib/ranges_2dRTDT.txt
 out/root
+root
+*.MF
+_EXAMPLES
+lib
+config
+jars
+jars/TWIMExtract.jar
