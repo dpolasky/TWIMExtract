@@ -2229,11 +2229,14 @@ public class CIUGenFrame extends javax.swing.JFrame {
 					if( line.startsWith("Using Auto Trap MS Collision Energy") && reachedFunctions){
 						splits = line.split("\\t");
 						String strCE = splits[splits.length - 1];
-						trapCV = Double.parseDouble(strCE);
+//						trapCV = Double.parseDouble(strCE);
+						transfCV = Double.parseDouble(strCE);
 					} if ( line.startsWith("Using Auto Transfer MS Collision Energy") && reachedFunctions){
 						splits = line.split("\\t");
 						String strCE = splits[splits.length - 1];
-						transfCV = Double.parseDouble(strCE);
+//						transfCV = Double.parseDouble(strCE);
+						// todo: NOTE - SWAPPED WITH TRAP FOR CYCLIC since it seems that's what's happening. Will likely revert at some point
+						trapCV = Double.parseDouble(strCE);
 					}
 					// todo: not sure what this is called (or if it's possible)
 //					if (line.startsWith("Stepwave.SampleConeVoltage.Setting") && reachedFunctions){
