@@ -347,7 +347,14 @@ public class IMExtractRunner {
 		boolean[] infoTypes = allFunctions.get(0).getInfoTypes();
 		try {
 			// Get data
-			ArrayList<MobData> allMobData = extractMobiligramReturn(allFunctions, ruleMode, ruleFile, extractionMode, dt_in_ms);
+			ArrayList<MobData> allMobData;
+			if (extractionMode != IMExtractRunner.RTDT_MODE) {
+				allMobData = extractMobiligramReturn(allFunctions, ruleMode, ruleFile, extractionMode, dt_in_ms);
+			} else {
+				assert allFunctions.size() == 1;	// MRM mode can have at most 1 function passed at a time - this should be mandated in the outer function but checked here to confirm
+				DataVectorInfoObject function = allFunctions.get(0);
+				allMobData = generateMobiligram2D(function, ruleMode, ruleFile, extractionMode, dt_in_ms);
+			}
 
 			// Now, write the output file
 			File out = new File(outputFilePath);
@@ -359,7 +366,7 @@ public class IMExtractRunner {
 				arraylines = rtWriteOutputs(allMobData, infoTypes);
 			} else {
 				double maxdt = 200; 	// if extracting in bins, maxdt = max bin
-				if (extractionMode == DT_MODE){
+				if (extractionMode == DT_MODE || extractionMode == RTDT_MODE){
 					if (dt_in_ms){
 						// compute max DT using max m/z info from _extern.inf file
 						maxdt = get_max_dt(allFunctions.get(0).getRawDataPath());
@@ -1048,7 +1055,7 @@ public class IMExtractRunner {
 			cmdarray.append(exeFile.getCanonicalPath()).append(" ");
 			cmdarray.append("-d ");
 			cmdarray.append("\"").append(function.getRawDataPath()).append("\" ");
-//			cmdarray.append("-f ").append(function.getFunction()).append(" ");
+			cmdarray.append("-f ").append(function.getFunction()).append(" ");
 			cmdarray.append("-o ");
 			cmdarray.append("\"").append(path).append("\" ");
 			cmdarray.append("-t ");

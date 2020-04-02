@@ -230,13 +230,16 @@ public class CIUGenFrame extends javax.swing.JFrame {
 			extr_mode_name = "MZ";
 		} else if(arg_opts.mode == IMExtractRunner.RT_MODE){
 			extr_mode_name = "RT";
+		} else if (arg_opts.mode == IMExtractRunner.RTDT_MODE) {
+			extr_mode_name = "MRM";
+			arg_opts.combineMode = false;	// no combining allowed in MRM mode
 		}
 
 		// All info has been gathered, so run the extractor
 		if (! arg_opts.combineMode){
 			// Pass a new list with only one function's info to the extractor
 			for (DataVectorInfoObject functionInfo : allfuncs){
-				ArrayList<DataVectorInfoObject> singleFunctionVector = new ArrayList<DataVectorInfoObject>();
+				ArrayList<DataVectorInfoObject> singleFunctionVector = new ArrayList<>();
 				singleFunctionVector.add(functionInfo);
 
 				// Make output directory folder to save files into if needed		
